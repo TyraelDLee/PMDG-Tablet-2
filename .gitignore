@@ -4,7 +4,7 @@ Bridge/obj/
 Setup/bin/
 Setup/obj/
 dist/
-tests/results/
+tests/
 README_local.md
 TEST-REPORT_local.md
 .idea/
