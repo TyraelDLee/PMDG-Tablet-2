@@ -8,7 +8,7 @@
     "net9.0": []
   },
   "packageFolders": {
-    "B:\\Developing\\pmdg-tablet\\efb-lan\\.build-profile\\.nuget\\packages\\": {}
+    "C:\\Users\\leety\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
@@ -16,12 +16,12 @@
       "projectUniqueName": "B:\\Developing\\pmdg-tablet\\efb-lan\\tests\\SimulatorSession\\SimulatorSession.csproj",
       "projectName": "SimulatorSession",
       "projectPath": "B:\\Developing\\pmdg-tablet\\efb-lan\\tests\\SimulatorSession\\SimulatorSession.csproj",
-      "packagesPath": "B:\\Developing\\pmdg-tablet\\efb-lan\\.build-profile\\.nuget\\packages\\",
+      "packagesPath": "C:\\Users\\leety\\.nuget\\packages\\",
       "outputPath": "B:\\Developing\\pmdg-tablet\\efb-lan\\tests\\SimulatorSession\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "B:\\Developing\\pmdg-tablet\\efb-lan\\NuGet.Config",
-        "B:\\Developing\\pmdg-tablet\\efb-lan\\.build-profile\\NuGet\\NuGet.Config",
+        "C:\\Users\\leety\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [

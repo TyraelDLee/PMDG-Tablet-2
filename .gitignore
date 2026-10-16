@@ -5,3 +5,6 @@ Setup/bin/
 Setup/obj/
 dist/
 tests/results/
+README_local.md
+TEST-REPORT_local.md
+.idea/
