@@ -1,0 +1,97 @@
+/* Browser-only presentation fixes; native EFB visibility and state stay authoritative. */
+.custom-select .fa-angle-down::before {
+  content: "" !important;
+  display: inline-block;
+  width: .45em;
+  height: .45em;
+  border-right: .1em solid currentColor;
+  border-bottom: .1em solid currentColor;
+  transform: rotate(45deg);
+  vertical-align: .2em;
+}
+.leaflet-container {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* PMDG shows/hides this element. Rotate only its glyph, not the positioned block. */
+#efb_navigraph_chart_loading,
+#efb_navigraph_searchbutton .fa-spinner.fa-spin {
+  animation: none !important;
+  transform: none !important;
+}
+#efb_navigraph_chart_loading::before,
+#efb_navigraph_searchbutton .fa-spinner.fa-spin::before {
+  display: inline-block;
+  transform-origin: center;
+  animation: efb-lan-chart-loading 1s linear infinite !important;
+}
+@keyframes efb-lan-chart-loading {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* LAN-only notice. The Leaflet root already provides the positioned map viewport;
+   keeping this outside its transformed panes prevents rotation/panning of text. */
+.efb-lan-navi-mode #efb_dashboard_map_container > .leaflet-container::after {
+  content: "NAVI MAP INOP";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: rgba(24, 30, 35, .88);
+  color: #f0c46a;
+  font: 600 32px/1.3 Arial, sans-serif;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+/* Owned by the LAN client only; the simulator never receives these controls. */
+/* A backdrop filter makes fixed descendants relative to the short status bar.
+   The bar is opaque already; remove that containing block in the LAN renderer. */
+#StatusBar { position: relative; z-index: auto; backdrop-filter: none; -webkit-backdrop-filter: none; }
+#autocruise_popup {
+  position: fixed;
+  z-index: 10000;
+  left: var(--efb-lan-view-x, 0px);
+  top: var(--efb-lan-view-y, 0px);
+  width: var(--efb-lan-view-width, 100%);
+  height: var(--efb-lan-view-height, 100%);
+}
+/* Explicit text colour prevents iOS native buttons from using system blue. */
+#statusbar_autocruise_open, button.opt_clear, button.opt_calculate {
+  color: #000;
+}
+#StatusBar #lan-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  /* Match the native time text line box, excluding the slot padding.
+     Buttons retain their larger touch targets, centered on that line. */
+  height: 1.5em;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+}
+#StatusBar #lan-controls.lan-controls-overlay {
+  position: absolute;
+  top: 0;
+  right: 16.667%;
+  width: 16.667%;
+}
+/* Bound the absolute label to the text side of the native icon/button. */
+#groundops_menu .groundops_menu_button > span {
+  right: 0;
+  width: 70%;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+/* A dedicated two-line label also avoids Safari shrink-to-fit differences. */
+#groundops_doors_management > span { max-width: 70%; white-space: pre-line !important; overflow-wrap: normal; word-break: normal; }
+button, .custom-select { touch-action: manipulation; }

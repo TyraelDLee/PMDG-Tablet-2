@@ -1,0 +1,7 @@
+.build-profile/
+Bridge/bin/
+Bridge/obj/
+Setup/bin/
+Setup/obj/
+dist/
+tests/results/

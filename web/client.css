@@ -1,0 +1,34 @@
+:root{color-scheme:dark;font:15px system-ui,sans-serif;background:#23272b;color:#eee}*{box-sizing:border-box}body{margin:0}#status{margin:0;text-align:center}button,select,input{font:inherit;color:inherit;background:#414d57;border:1px solid #657985;border-radius:6px;padding:6px 12px}button{cursor:pointer}button:hover{background:#0079c2}main{height:100vh;height:100dvh;position:relative;overflow:hidden;background:#161a1e}#screen{border:0;position:absolute;left:0;top:0;transform-origin:0 0;background:#474d52}#offline{position:absolute;inset:0;display:flex;flex-direction:column;gap:18px;padding:20px;align-items:center;justify-content:center;background:#20262bed;pointer-events:all;font-size:20px}#offline[hidden],form[hidden]{display:none}form{position:absolute;z-index:3;width:min(440px,94vw);left:50%;top:24%;transform:translateX(-50%);padding:28px;border-radius:16px;background:#354047;box-shadow:0 10px 50px #0008}form p{line-height:1.6;color:#bdccd5}form label{display:block}form input{display:block;width:100%;margin:12px 0}form button{width:100%;background:#0079c2}#lan-controls{display:flex;align-items:center;justify-content:center;gap:12px}
+
+#surface{position:absolute;overflow:hidden;background:#474d52}
+
+/* Home-screen mode only. A real fixed element supplies an opaque top surface;
+   pseudo-elements and the native header inside the iframe are not substitutes.
+   Use OS-provided insets, not a hard-coded extra toolbar/blur margin. */
+#standalone-top-background { display: none; }
+html.efb-standalone {
+  --efb-safe-top: max(1px, env(safe-area-inset-top, 0px));
+  --efb-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --efb-safe-left: env(safe-area-inset-left, 0px);
+  --efb-safe-right: env(safe-area-inset-right, 0px);
+  background: #474d52;
+}
+.efb-standalone body { background: #474d52; overflow: hidden; }
+.efb-standalone #standalone-top-background {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--efb-safe-top);
+  background-color: #474d52;
+  z-index: 4;
+  pointer-events: none;
+}
+.efb-standalone #viewport {
+  margin-top: var(--efb-safe-top);
+  margin-left: var(--efb-safe-left);
+  width: calc(100% - var(--efb-safe-left) - var(--efb-safe-right));
+  height: calc(100vh - var(--efb-safe-top) - var(--efb-safe-bottom));
+  height: calc(100dvh - var(--efb-safe-top) - var(--efb-safe-bottom));
+}

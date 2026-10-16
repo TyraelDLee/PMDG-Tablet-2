@@ -1,0 +1,16 @@
+/* Shared by the waiting page and the mirrored native status bar. */
+#lan-controls { display:flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap; color:#f3f6f8; font:19px/1 Arial,sans-serif; }
+#lan-controls #lan-aircraft { display:block; flex:0 0 auto; min-width:104px; text-align:center; font:inherit; letter-spacing:normal; color:inherit; }
+#lan-controls button { appearance:none; -webkit-appearance:none; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; height:36px; margin:0; padding:0; border:0; border-radius:18px; background:transparent; color:inherit; font:inherit; box-shadow:none; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+#lan-controls #side { gap:8px; width:130px; padding:0 8px; }
+#lan-controls .lan-side-ca, #lan-controls .lan-side-fo { display:block; width:26px; text-align:center; font-weight:inherit; color:inherit; }
+#lan-controls #side[aria-checked="false"] .lan-side-ca, #lan-controls #side[aria-checked="true"] .lan-side-fo { color:#fff; font-weight:700; }
+#lan-controls .lan-side-track { display:block; position:relative; flex:0 0 38px; height:20px; border-radius:12px; background:#226789; box-shadow:inset 0 0 0 1px #ffffff25; }
+#lan-controls .lan-side-thumb { display:block; position:absolute; left:3px; top:3px; width:14px; height:14px; border-radius:50%; background:#f5fafc; box-shadow:0 1px 3px #0005; transition:transform .16s ease; }
+#lan-controls #side[aria-checked="true"] .lan-side-thumb { transform:translateX(18px); }
+#lan-controls #reconnect { width:36px; color:#e5edf2; }
+#lan-controls #reconnect svg { display:block; width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+#lan-controls button:hover { background:#ffffff12; }
+#lan-controls button:active { background:#ffffff22; }
+#lan-controls button:focus-visible { outline:2px solid #67c9f5; outline-offset:-2px; }
+@media(prefers-reduced-motion:reduce) { #lan-controls .lan-side-thumb { transition:none; } }

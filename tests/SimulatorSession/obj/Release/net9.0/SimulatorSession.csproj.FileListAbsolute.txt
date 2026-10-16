@@ -1,0 +1,14 @@
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\bin\Release\net9.0\SimulatorSession.exe
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\bin\Release\net9.0\SimulatorSession.deps.json
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\bin\Release\net9.0\SimulatorSession.runtimeconfig.json
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\bin\Release\net9.0\SimulatorSession.dll
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\bin\Release\net9.0\SimulatorSession.pdb
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.GeneratedMSBuildEditorConfig.editorconfig
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.AssemblyInfoInputs.cache
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.AssemblyInfo.cs
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.csproj.CoreCompileInputs.cache
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.dll
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\refint\SimulatorSession.dll
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.pdb
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\SimulatorSession.genruntimeconfig.cache
+B:\Developing\pmdg-tablet\efb-lan\tests\SimulatorSession\obj\Release\net9.0\ref\SimulatorSession.dll

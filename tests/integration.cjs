@@ -1,0 +1,274 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const {spawn} = require('node:child_process');
+const {createRequire} = require('node:module');
+const deps = process.env.EFB_TEST_DEPS || 'C:/Users/leety/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules';
+const load = createRequire(path.join(deps,'placeholder.cjs'));
+const {chromium} = load('playwright');
+const {ws: WebSocket, wsServer: WebSocketServer} = require(path.join(deps,'playwright-core/lib/utilsBundle.js'));
+const base = path.resolve(__dirname,'..');
+const bundle = path.resolve(base,process.env.EFB_TEST_BUNDLE || 'dist/EfbV2-LAN');
+const output = path.join(__dirname,'results'); fs.mkdirSync(output,{recursive:true});
+const port = 18385, hostPort = 18386, gsxPort = 18387, batcPort = 18388;
+const key = '0042', hostKey = 'integration-test-host-secret-000000000';
+// Never let service startup write test credentials into the distributable payload.
+const testPackage=fs.mkdtempSync(path.join(output,'browser-package-'));
+const configPath = path.join(testPackage,'test-config.json');
+fs.cpSync(path.join(bundle,'package/pmdg-tablet-v2'),testPackage,{recursive:true});
+fs.writeFileSync(configPath,JSON.stringify({Port:port,BindAddress:'127.0.0.1',PairingKey:key,HostKey:hostKey,PackagePath:testPackage,GsxPort:gsxPort,BatcPort:batcPort}));
+const tablet=path.join(testPackage,'html_ui/Pages/VCockpit/Instruments/PMDGTablet');
+const entry=fs.readFileSync(path.join(tablet,'pmdg-777-300ER/PMDGTabletCA.html'),'utf8');
+const imports=[...entry.matchAll(/<script\b[^>]*import-script="([^"]*\/lan-bridge\/[^\"]+)"[^>]*><\/script>/g)].map(m=>m[1]);
+assert.deepEqual(imports.map(p=>path.basename(p)),['lan-bridge-config.js','lan-bridge-host.js'],'Distributable must load both bridge scripts in order');
+const bootstrap=imports.map(src=>`<script src="${src}"></script>`).join('');
+const model='/Pages/VCockpit/Instruments/PMDGTablet/pmdg-777-300ER';
+fs.writeFileSync(path.join(testPackage,'html_ui/fixture-icons.css'),`.fixture-app-icon{display:block;width:64px;height:64px;background:url(".${model}/Assets/efb_icon.png") center/contain no-repeat}`);
+const logs=[], errors=[]; let proc,browser,server; const sockets=[];
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+async function until(fn,message) { for(let i=0;i<80;i++){if(await fn())return;await wait(100);}throw Error(message); }
+async function rejected(url, options={}) { return new Promise((resolve,reject)=>{const s=new WebSocket(url,options); s.on('open',()=>{s.close();reject(Error('Unauthenticated socket accepted'));});s.on('unexpected-response',(_,r)=>resolve(r.statusCode));s.on('error',()=>{});}); }
+function fixture() { return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#474d52;color:#eee;font:24px Arial}#FullScreen{padding:30px}#StatusBar{position:absolute;left:0;top:0;width:100%;height:40px;background:#474d52}#StatusBar>.row{display:flex;height:100%}#StatusBar .col-md-2{width:16.667%}#StatusBar .col-md-1{width:8.333%}#StatusBar .col-md-4{width:33.333%}button,input,select{font:24px Arial;padding:12px;margin:8px;background:#0079c2;color:white}#scroll{height:100px;overflow:auto}#tall{height:900px}canvas{background:#222}iframe{height:80px}</style><script>window.EFB_LAN_CONFIG={enabled:true,port:${port},hostKey:'${hostKey}'};window.framesSent=0;const send=WebSocket.prototype.send;WebSocket.prototype.send=function(s){if(/"type":"(?:frame|patch)"/.test(s))window.framesSent++;return send.call(this,s);}</script><script src="/host.js"></script></head><body><div id="FullScreen" data-tablet-side="ca"><div id="StatusBar"><div class="row"><div class="col-md-2">Signal</div><div class="col-md-1">Cruise</div><div class="col-md-1">1x</div><div id="statusbar_time" class="col-md-4">00:00 LOCAL / 00:00 UTC</div><div class="col-md-2"></div><div id="statusbar_home" class="col-md-1">Home</div><div class="col-md-1">Battery</div></div></div><h1>Native EFB test fixture</h1><label>Weight<input id="weight" value="250"></label><select id="runway"><option>07R</option><option>25L</option></select><button id="calculate">Calculate</button><div id="result">--</div><div id="scroll"><div id="tall">Scrollable record</div></div><canvas id="chart" width="180" height="80"></canvas><iframe id="service" src="/Pages/VCockpit/Instruments/PMDGTablet/pmdg-777-300ER/beyondatc_toolbar/index.html"></iframe></div><script>window.calls=[];document.getElementById('calculate').onclick=function(){calls.push({tag:'opt_takeoff',weight:weight.value,runway:runway.value});document.getElementById('result').textContent='V1 '+weight.value+' '+runway.value;};var c=chart.getContext('2d');c.fillStyle='#0079c2';c.fillRect(10,10,140,50);</script></body></html>`; }
+(async()=>{
+ try {
+  for(const p of [gsxPort,batcPort]) { const wss=new WebSocketServer({port:p,host:'127.0.0.1'}); sockets.push(wss);wss.on('connection',s=>s.on('message',(b,isBinary)=>s.send(b,{binary:isBinary}))); }
+  server=http.createServer((req,res)=>{if(imports.includes(req.url)){res.setHeader('Content-Type','application/javascript');res.end(fs.readFileSync(path.join(tablet,'lan-bridge',path.basename(req.url))));}else if(req.url==='/'){res.setHeader('Content-Type','text/html');res.end(fixture().replace('<script src="/host.js"></script>',bootstrap));}else {const file=path.join(testPackage,'html_ui',req.url.split('?')[0]);if(fs.existsSync(file)&&fs.statSync(file).isFile()){res.setHeader('Content-Type',file.endsWith('.css')?'text/css':file.endsWith('.png')?'image/png':file.endsWith('.woff2')?'font/woff2':'application/octet-stream');res.end(fs.readFileSync(file));}else res.end('fixture iframe');}});await new Promise(r=>server.listen(hostPort,'127.0.0.1',r));
+  proc=spawn(path.join(bundle,'service/EfbLanBridge.exe'),['--config',configPath],{windowsHide:true,stdio:'ignore'});
+  await until(async()=>{try{return (await fetch(`http://127.0.0.1:${port}/health`)).ok}catch{return false}},'Bridge startup failed');
+  assert.equal((await fetch(`http://127.0.0.1:${port}/session`)).status,401);
+  assert.equal(await rejected(`ws://127.0.0.1:${port}/ws/client?side=CA`,{origin:`http://127.0.0.1:${port}`}),403);
+  assert.equal(await rejected(`ws://127.0.0.1:${port}/ws/host?side=CA&key=bad`),403); logs.push('Unauthenticated clients and invalid host keys rejected');
+  browser=await chromium.launch({channel:'msedge',headless:true});
+  const native=await browser.newPage({viewport:{width:2048,height:2048}});
+  await native.addInitScript(()=>{const Original=WebSocket;window.WebSocket=class extends Original{constructor(...args){super(...args);window.__lastNativeSocket=this;}};});
+  const remote=await browser.newPage({viewport:{width:1366,height:1024},hasTouch:true});
+  remote.on('pageerror',e=>errors.push(e.message));native.on('pageerror',e=>errors.push(e.message));
+  await native.addInitScript(()=>{window.__aircraftType='777-300ER';window.getAircraftType=()=>window.__aircraftType;});
+  await remote.addInitScript(()=>localStorage.setItem('efb-side','FO')); // Old preference must not override the new CA default.
+  await native.goto(`http://127.0.0.1:${hostPort}/`);
+  await native.evaluate(()=>Object.assign(document.getElementById('FullScreen').style,{position:'absolute',left:'0px',top:'0px',width:'2048px',height:'1562px',boxSizing:'border-box'}));
+  await remote.goto(`http://127.0.0.1:${port}/`);await remote.locator('#key').fill(key);await remote.locator('#pair button').click();
+  const screen=remote.frameLocator('#screen');await screen.locator('#calculate').waitFor();
+  await screen.locator('#StatusBar #side').waitFor();
+  assert.equal(await screen.locator('#side').getAttribute('aria-checked'),'false');
+  assert.equal(await screen.locator('#side').evaluate(n=>n.value),'CA');
+  assert.equal(await screen.locator('#lan-aircraft').textContent(),'777-300ER');
+  const models=[['737-600','737-600'],['737-700BBJ','737-700'],['PMDG 737-800 PAX SSW BW','737-800'],['737-800BBJ2','737-800'],['737-900ER','737-900ER'],['777-200LR','777-200LR'],['777-200ER','777-200ER'],['777-F','777F'],['777-300ER','777-300ER']];
+  for(const [source,expected] of models){await native.evaluate(v=>window.__aircraftType=v,source);await until(async()=>await screen.locator('#lan-aircraft').textContent()===expected,'Aircraft label not normalized/updated: '+source);}
+  assert.equal(await screen.locator('.lan-side-ca').evaluate(n=>getComputedStyle(n).fontWeight),'700');
+  assert.equal(await screen.locator('.lan-side-fo').evaluate(n=>getComputedStyle(n).fontWeight),'400');
+  logs.push('Aircraft metadata updates without DOM changes; subtype labels drop BBJ/PAX/SSW/BW and retain 900ER/200ER/200LR/F; fresh page defaults to CA despite saved FO');
+  assert.equal(await remote.locator('header').count(),0);
+  assert.equal(await remote.locator('#viewport').evaluate(n=>n.getBoundingClientRect().height),1024);
+  assert.equal(await native.locator('#lan-controls').count(),0);
+  await screen.locator('#side').focus();
+  await screen.locator('#lan-controls').evaluate(n=>{window.originalLanControls=n;window.lanDetachments=0;new MutationObserver(ms=>{for(const m of ms)for(const r of m.removedNodes)if(r===n)window.lanDetachments++}).observe(n.parentElement,{childList:true})});
+  await native.locator('#statusbar_time').evaluate(n=>n.textContent='00:01 LOCAL / 00:01 UTC');
+  await until(async()=>await screen.locator('#statusbar_time').textContent()==='00:01 LOCAL / 00:01 UTC','Status bar patch not received');
+  assert(await screen.locator('#side').evaluate(n=>n.ownerDocument.activeElement===n));
+  await screen.locator('#reconnect').click();await wait(500);
+  assert(await screen.locator('#lan-controls').evaluate(n=>n===window.originalLanControls&&window.lanDetachments===0));
+  assert.equal(await screen.locator('#lan-controls').count(),1);
+  const controlsBox=await screen.locator('#lan-controls').boundingBox(),timeBox=await screen.locator('#statusbar_time').boundingBox(),homeBox=await screen.locator('#statusbar_home').boundingBox();
+  assert(controlsBox.x>=timeBox.x+timeBox.width-1&&controlsBox.x+controlsBox.width<=homeBox.x+1);
+  assert(await screen.locator('#lan-controls').evaluate(n=>n.scrollWidth<=n.clientWidth));
+  await screen.locator('#StatusBar').screenshot({path:path.join(output,'lan-statusbar.png')});
+  logs.push('External banner removed; LAN controls occupy native status-bar gap, remain focused/attached during patches and resync, and never appear in simulator DOM');
+  await screen.locator('#weight').fill('268');await screen.locator('#runway').selectOption({label:'25L'});await screen.locator('#calculate').click();
+  await until(async()=>await native.locator('#result').textContent()==='V1 268 25L','Native operation not delivered');
+  await until(async()=>await screen.locator('#result').textContent()==='V1 268 25L','Result not reflected');
+  assert.equal(await native.evaluate(()=>calls.length),1);logs.push('Remote inputs and Calculate delegated once to native handler; result reflected');
+  await screen.locator('#scroll').evaluate(n=>n.scrollTop=200);await until(async()=>await native.locator('#scroll').evaluate(n=>n.scrollTop)>190,'Scroll not forwarded');logs.push('Scroll state forwarded');
+  assert.deepEqual(await screen.locator('#chart').evaluate(n=>Array.from(n.getContext('2d').getImageData(20,20,1,1).data)),[0,121,194,255]);logs.push('Canvas 2D vector commands replayed locally');
+  for(const size of [{width:1194,height:834},{width:834,height:1194},{width:1920,height:1080}]) {
+    await remote.setViewportSize(size);
+    await until(async()=>remote.evaluate(()=>{
+      const v=document.getElementById('viewport').getBoundingClientRect(),s=document.getElementById('surface').getBoundingClientRect();
+      const k=Math.min(v.width/2048,v.height/1562);
+      return Math.abs(s.width-2048*k)<1&&Math.abs(s.height-1562*k)<1&&Math.abs((s.left+s.width/2)-(v.left+v.width/2))<1&&Math.abs((s.top+s.height/2)-(v.top+v.height/2))<1;
+    }),'Tablet content did not fill/center within browser viewport');
+  }
+  // Exercise standalone layout without claiming to emulate iOS compositor effects.
+  assert.equal(await remote.locator('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content'),'default');
+  assert(await remote.locator('#standalone-top-background').isHidden());
+  await remote.evaluate(()=>{Object.defineProperty(navigator,'standalone',{configurable:true,value:true});window.dispatchEvent(new Event('pageshow'))});
+  await remote.locator('#standalone-top-background').waitFor();
+  assert(await remote.locator('#standalone-top-background').evaluate(n=>{const s=getComputedStyle(n);return s.position==='fixed'&&s.top==='0px'&&s.backgroundColor==='rgb(71, 77, 82)'&&s.pointerEvents==='none'&&n.offsetWidth===innerWidth}));
+  // Controlled insets verify fit geometry for portrait and landscape safe areas.
+  for(const size of [{width:1194,height:834},{width:834,height:1194}]) {
+    await remote.setViewportSize(size);
+    await remote.evaluate(()=>{const s=document.documentElement.style;for(const [k,v] of Object.entries({top:24,bottom:20,left:12,right:12}))s.setProperty('--efb-safe-'+k,v+'px')});
+    await until(async()=>remote.evaluate(()=>{const v=document.getElementById('viewport').getBoundingClientRect(),s=document.getElementById('surface').getBoundingClientRect();return v.y===24&&v.x===12&&v.height===innerHeight-44&&v.width===innerWidth-24&&s.top>=v.top-.5&&s.bottom<=v.bottom+.5&&s.left>=v.left-.5&&s.right<=v.right+.5}),'Standalone content escaped safe area');
+    assert(await screen.locator('#StatusBar #side').isVisible());
+  }
+  await screen.locator('#reconnect').click();await wait(300);
+  assert(await remote.locator('#standalone-top-background').isVisible());
+  assert.equal(await native.locator('#standalone-top-background').count(),0);
+  await remote.evaluate(()=>{delete navigator.standalone;for(const k of ['top','bottom','left','right'])document.documentElement.style.removeProperty('--efb-safe-'+k);window.dispatchEvent(new Event('pageshow'))});
+  assert(await remote.locator('#standalone-top-background').isHidden());
+  assert.equal(await remote.locator('#viewport').evaluate(n=>n.clientHeight),1194);
+  logs.push('Home-screen mode uses opaque fixed top surface and safe-area fit in both orientations; resync preserves surface; ordinary browser returns to full height; iOS system blur requires real-device check');
+  await remote.setViewportSize({width:1194,height:834});
+  await native.evaluate(()=>{
+    const pad=document.createElement('div');pad.id='map-fixture';pad.className='leaflet-container';pad.style.cssText='position:absolute;left:60px;top:650px;width:800px;height:250px;background:#264354';
+    pad.innerHTML='<button class="leaflet-control">Zoom</button><div id="drag-result">--</div>';
+    document.getElementById('FullScreen').appendChild(pad);window.drags=[];window.zoomCalls=0;
+    pad.querySelector('button').onclick=()=>window.zoomCalls++;
+    // The bundled Leaflet drag handler rejects primary mouse events with which=0.
+    pad.onmousedown=e=>{
+      if(e.target.closest('.leaflet-control')||(e.which!==1&&e.button!==1))return;
+      const start=[e.clientX,e.clientY];let delta=[0,0];
+      const move=e=>{delta=[e.clientX-start[0],e.clientY-start[1]];};
+      const end=()=>{window.drags.push({start,delta});document.getElementById('drag-result').textContent=delta.join(',');document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',end);};
+      document.addEventListener('mousemove',move);document.addEventListener('mouseup',end);
+    };
+    const arrow=document.createElement('div');arrow.className='custom-select';arrow.innerHTML='<i id="arrow-fixture" class="fa-regular fa-angle-down"></i>';pad.appendChild(arrow);
+  });
+  await screen.locator('#map-fixture').waitFor();
+  const mapBox=await screen.locator('#map-fixture').boundingBox();
+  const start={x:mapBox.x+mapBox.width*.6,y:mapBox.y+mapBox.height*.6};
+  const nativeStart=await native.locator('#map-fixture').evaluate(n=>{const r=n.getBoundingClientRect();return [r.x+r.width*.6,r.y+r.height*.6]});
+  await remote.mouse.move(start.x,start.y);await remote.mouse.down();await remote.mouse.move(start.x+60,start.y+25,{steps:6});await wait(80);await remote.mouse.up();
+  await until(async()=>await native.evaluate(()=>window.drags.length)===1,'Mouse drag was rejected by native Leaflet-style handler');
+  let drag=await native.evaluate(()=>window.drags[0]);
+  const k=mapBox.width/800;
+  assert(Math.abs(drag.start[0]-nativeStart[0])<2&&Math.abs(drag.start[1]-nativeStart[1])<2);
+  assert(Math.abs(drag.delta[0]-60/k)<3&&Math.abs(drag.delta[1]-25/k)<3);
+  const cdp=await remote.context().newCDPSession(remote);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[start]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:start.x+45,y:start.y+20}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await until(async()=>await native.evaluate(()=>window.drags.length)===2,'Touch drag not forwarded/released');
+  drag=await native.evaluate(()=>window.drags[1]);assert(Math.abs(drag.delta[0]-45/k)<3&&Math.abs(drag.delta[1]-20/k)<3);
+  await screen.locator('#map-fixture button').tap();await until(async()=>await native.evaluate(()=>window.zoomCalls)===1,'Map control tap not delivered once');
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[start]});await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  await until(async()=>await native.evaluate(()=>window.drags.length)===3,'Cancelled touch did not release native drag');
+  assert.equal(await screen.locator('#arrow-fixture').evaluate(n=>getComputedStyle(n,'::before').content),'""');
+  await native.evaluate(()=>Object.assign(document.getElementById('FullScreen').style,{left:'48px',top:'36px',width:'1952px',height:'1526px'}));
+  await until(async()=>await remote.locator('#screen').evaluate(n=>parseFloat(n.style.left)<0&&parseFloat(n.style.top)<0),'Native content offset not cropped');
+  const offsetBox=await screen.locator('#map-fixture').boundingBox();
+  await remote.mouse.move(offsetBox.x+offsetBox.width*.6,offsetBox.y+offsetBox.height*.6);await wait(850);await remote.mouse.down();await remote.mouse.up();
+  await until(async()=>await native.evaluate(()=>window.drags.length)===4,'Click after content offset not forwarded');
+  drag=await native.evaluate(()=>window.drags[3]);assert(Math.abs(drag.start[0]-(nativeStart[0]+48))<2&&Math.abs(drag.start[1]-(nativeStart[1]+36))<2);
+  await native.evaluate(()=>{
+    window.legacyFrames=true;const send=WebSocket.prototype.send;
+    WebSocket.prototype.send=function(value){const m=JSON.parse(value);if(window.legacyFrames&&(m.type==='frame'||m.type==='patch'))delete m.contentRect;return send.call(this,JSON.stringify(m));};
+  });
+  await screen.locator('#reconnect').click();await wait(500);
+  assert(await remote.locator('#screen').evaluate(n=>parseFloat(n.style.left)<0&&parseFloat(n.style.top)<0));
+  const measured=await remote.locator('#surface').boundingBox();assert(Math.abs(measured.width/measured.height-1952/1526)<.001);
+  await native.evaluate(()=>window.legacyFrames=false);
+  logs.push('Older host frames without content bounds use reconstructed tablet geometry');
+  await remote.screenshot({path:path.join(output,'tablet-fit-and-map.png')});
+  logs.push('2048-square simulator texture cropped to actual EFB bounds; desktop and tablet orientations fit/center without distortion; shifted content preserves native event coordinates');
+  logs.push('Mouse and real browser touch drags accepted by native Leaflet-style handler; touch cancel releases drag; map control tap fires once; CSS dropdown chevron has no font glyph dependency');
+  await screen.locator('#service').evaluate(n=>n.contentWindow.__preserveTest='keep');await screen.locator('#reconnect').click();await wait(500);assert.equal(await screen.locator('#service').evaluate(n=>n.contentWindow.__preserveTest),'keep');logs.push('Full resync preserves the local BATC iframe and its connection');
+  await require('./touch-controls.cjs')({native,remote,screen,tablet,output,until,wait,logs});
+  const cookie=(await remote.context().cookies()).find(c=>c.name==='efb-pair');assert(cookie.httpOnly);assert.notEqual(cookie.value,key);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/session`,{headers:{Cookie:`efb-pair=${key}`}})).status,401);
+  const headers={Cookie:`efb-pair=${cookie.value}`,Origin:`http://127.0.0.1:${port}`};
+  for(const url of ['/navigraph/settings','/navigraph-app.js','/navigraph-app.css'])assert.equal((await fetch(`http://127.0.0.1:${port}${url}`,{headers})).status,404);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/navigraph/settings`,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:'{}'})).status,404);
+  await native.evaluate(()=>{const dock=document.createElement('div');dock.id='remote-app-launchers';document.getElementById('FullScreen').appendChild(dock)});
+  await screen.locator('#remote-app-launchers').waitFor({state:'attached'});await screen.locator('#reconnect').click();await wait(300);
+  assert.equal(await screen.locator('#lan-navigraph-launcher').count(),0);assert.equal(await remote.locator('#navigraph-app').count(),0);
+  logs.push('Navigraph LAN app and configuration endpoints removed; resync does not restore launcher');
+  assert.equal(await rejected(`ws://127.0.0.1:${port}/ws/client?side=CA`,{headers:{...headers,Cookie:`efb-pair=${key}`}}),403);
+  logs.push('Four-digit PIN with leading zero pairs; PIN cannot be used as a forged session cookie');
+  let remoteTileRequests=0,nativeTileRequests=0;
+  const tile='https://enroute-bitmap.charts.api-v2.navigraph.com/styles/world.day/1/1/1.png';
+  const png=await native.evaluate(async()=>{const c=document.createElement('canvas');c.width=320;c.height=320;const ctx=c.getContext('2d');const p=ctx.createImageData(320,320);for(let i=0;i<p.data.length;i+=4){p.data[i]=Math.random()*255;p.data[i+1]=Math.random()*255;p.data[i+2]=Math.random()*255;p.data[i+3]=255;}ctx.putImageData(p,0,0);return c.toDataURL('image/png').split(',')[1];});
+  await native.route(tile,async route=>{nativeTileRequests++;const h=await route.request().allHeaders();assert(h.cookie?.includes('tile-test=native-only'),'Tile fetch must carry native login cookie');await route.fulfill({body:Buffer.from(png,'base64'),contentType:'application/octet-stream',headers:{'Access-Control-Allow-Origin':`http://127.0.0.1:${hostPort}`,'Access-Control-Allow-Credentials':'true'}});});
+  await native.context().addCookies([{name:'tile-test',value:'native-only',domain:'enroute-bitmap.charts.api-v2.navigraph.com',path:'/',secure:true,sameSite:'None'}]);
+  await remote.route('https://*.navigraph.com/**',route=>{remoteTileRequests++;return route.fulfill({status:403,body:'No remote login'});});
+  await native.evaluate(async({png,tile,model})=>{
+    const blob=new Blob([Uint8Array.from(atob(png),c=>c.charCodeAt(0))],{type:'image/png'});
+    const image=document.createElement('img');image.id='blob-chart';image.width=160;image.src=URL.createObjectURL(blob);document.getElementById('FullScreen').appendChild(image);
+    const tileImage=document.createElement('img');tileImage.id='private-tile';tileImage.width=80;tileImage.src=tile;document.getElementById('FullScreen').appendChild(tileImage);
+    for(const href of ['/fixture-icons.css',model+'/Assets/fontawesome/css/all.css']){const link=document.createElement('link');link.rel='stylesheet';link.href=href;await new Promise(resolve=>{link.onload=()=>{Object.defineProperty(link.sheet,'cssRules',{get(){throw new Error('Fixture: native CSSOM unavailable')}});resolve()};document.head.appendChild(link)});}
+    const icons=document.createElement('div');icons.id='test-icons';icons.innerHTML='<span class="fixture-app-icon"></span><i class="fa-solid fa-minus"></i><i class="fa-solid fa-plane"></i><i class="fa-solid fa-moon"></i><svg><use href="/symbol.svg#plane"></use></svg><img id="coui-icon" src="coui://html_ui'+model+'/Assets/efb_icon.png">';document.getElementById('FullScreen').appendChild(icons);
+  },{png,tile,model});
+  await until(async()=>await screen.locator('#blob-chart').evaluate(n=>n.src.includes('/resources/')&&n.naturalWidth===320),'Blob chart not transferred');
+  await until(async()=>await screen.locator('#private-tile').evaluate(n=>n.src.includes('/resources/')&&n.naturalWidth===320),'Cookie-protected tile not transferred');
+  const imagePath=await screen.locator('#blob-chart').getAttribute('src');
+  assert.deepEqual(Buffer.from(await (await fetch(`http://127.0.0.1:${port}${imagePath}`,{headers})).arrayBuffer()),Buffer.from(png,'base64'));
+  assert.equal((await fetch(`http://127.0.0.1:${port}${imagePath}`)).status,401);
+  assert.equal((await fetch(`http://127.0.0.1:${port}${imagePath.replace('/CA/','/FO/')}`,{headers})).status,404);
+  await until(async()=>await screen.locator('#test-icons .fa-plane').evaluate(async n=>{await n.ownerDocument.fonts.load('900 24px "Font Awesome 6 Free"');return getComputedStyle(n,':before').content.includes('\uf072')&&n.ownerDocument.fonts.check('900 24px "Font Awesome 6 Free"')}),'External icon font not loaded');
+  assert((await screen.locator('#test-icons .fixture-app-icon').evaluate(n=>getComputedStyle(n).backgroundImage)).includes('/assets/Pages/'));
+  assert.equal(await screen.locator('#test-icons use').getAttribute('href'),'/assets/symbol.svg#plane');
+  await until(async()=>await screen.locator('#coui-icon').evaluate(n=>n.naturalWidth===120),'Coherent icon path was not mapped');
+  await native.evaluate(model=>{
+    const button=document.createElement('button');button.id='efb_dashboard_map_switcher';button.style.cssText='width:100px;height:100px;background-size:contain;background-repeat:no-repeat';
+    button.style.backgroundImage="url('coui://html_UI/"+model+"/Assets/hurricane_white.png')";
+    const spinner=document.createElement('i');spinner.id='efb_navigraph_chart_loading';spinner.className='fas fa-spinner fa-spin';spinner.style.cssText='display:block;font-size:50px;color:#0079c2';
+    const search=document.createElement('button');search.id='efb_navigraph_searchbutton';search.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+    document.getElementById('FullScreen').append(button,spinner,search);
+  },model);
+  await screen.locator('#efb_dashboard_map_switcher').waitFor();
+  const iconBackground=await screen.locator('#efb_dashboard_map_switcher').evaluate(n=>getComputedStyle(n).backgroundImage);
+  assert(iconBackground.includes('/assets/Pages/'));assert(!iconBackground.includes('/assets//'));
+  assert(await screen.locator('#efb_dashboard_map_switcher').evaluate(n=>new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.naturalWidth>0);img.onerror=()=>resolve(false);img.src=getComputedStyle(n).backgroundImage.slice(5,-2)})));
+  for(const aircraft of ['pmdg-737-800','pmdg-777-200ER','pmdg-777-300ER','pmdg-777F']) {
+    const r=await fetch(`http://127.0.0.1:${port}/assets//Pages/VCockpit/Instruments/PMDGTablet/${aircraft}/Assets/hurricane_white.png`,{headers});assert.equal(r.status,200);assert(r.headers.get('content-type').startsWith('image/png'));
+  }
+  const spinner=screen.locator('#efb_navigraph_chart_loading');
+  await until(async()=>await spinner.evaluate(n=>getComputedStyle(n,'::before').animationName==='efb-lan-chart-loading'),'Chart spinner animation not applied');
+  const firstTransform=await spinner.evaluate(n=>getComputedStyle(n,'::before').transform);await wait(180);
+  assert.notEqual(await spinner.evaluate(n=>getComputedStyle(n,'::before').transform),firstTransform);
+  assert.equal(await spinner.evaluate(n=>getComputedStyle(n).transform),'none');
+  await native.locator('#efb_navigraph_chart_loading').evaluate(n=>n.style.display='none');
+  await until(async()=>await spinner.isHidden(),'Completed chart spinner did not hide');
+  const searchSpinner=screen.locator('#efb_navigraph_searchbutton i');
+  assert.equal(await searchSpinner.evaluate(n=>getComputedStyle(n,'::before').animationName),'efb-lan-chart-loading');
+  const searchTransform=await searchSpinner.evaluate(n=>getComputedStyle(n,'::before').transform);await wait(180);
+  assert.notEqual(await searchSpinner.evaluate(n=>getComputedStyle(n,'::before').transform),searchTransform);
+  await native.locator('#efb_navigraph_searchbutton').evaluate(n=>n.innerHTML='<i class="fa fa-search"></i>');
+  await until(async()=>await searchSpinner.getAttribute('class')==='fa fa-search','Search icon not restored');
+  assert.equal(await searchSpinner.evaluate(n=>getComputedStyle(n,'::before').animationName),'none');
+  logs.push('Airport search spinner rotates; completed search restores an unanimated magnifying glass');
+  logs.push('PMDG switch icon normalizes double-slash coui path and decodes; all four models serve legacy URLs; chart glyph rotates locally and native completion still hides it');
+  assert.equal(remoteTileRequests,0);assert(nativeTileRequests>0);
+  const badTile=tile.replace('/1/1/1.png','/1/0/0.png');
+  await native.route(badTile,route=>route.fulfill({status:403,body:'Denied',headers:{'Access-Control-Allow-Origin':`http://127.0.0.1:${hostPort}`,'Access-Control-Allow-Credentials':'true'}}));
+  await native.evaluate(url=>{const i=document.createElement('img');i.id='denied-tile';i.src=url;document.getElementById('FullScreen').appendChild(i)},badTile);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/diagnostics`)).status,401);
+  await until(async()=>{const d=await(await fetch(`http://127.0.0.1:${port}/diagnostics`,{headers})).json();return d.CA?.failures.some(f=>f.kind==='navigraph-tile'&&f.reason==='http'&&f.status===403)},'Native resource failure was not reported');
+  logs.push('Binary MIME PNG recognized from bytes; native HTTP 403 reported via paired-only diagnostics');
+  await native.locator('#denied-tile').evaluate(n=>n.remove());
+  logs.push('Multi-chunk Blob charts and native-cookie tiles transferred byte-for-byte without iPad credentials; image endpoints require pairing and isolate CA/FO');
+  logs.push('Unreadable native CSSOM restored through stylesheet links: home image and Font Awesome plane/minus/moon; SVG fragments preserved');
+  const tileFetches=nativeTileRequests;
+  await native.evaluate(()=>window.__lastNativeSocket.close());
+  await until(async()=>await remote.locator('#offline').isVisible(),'Host reconnect must show offline');
+  await until(async()=>{const r=await fetch(`http://127.0.0.1:${port}${imagePath}`,{headers});return r.ok&&Buffer.from(await r.arrayBuffer()).equals(Buffer.from(png,'base64'));},'Cached image not re-uploaded after reconnect');
+  await until(async()=>await screen.locator('#blob-chart').evaluate(n=>n.src.includes('/resources/')&&n.naturalWidth===320),'Chart not restored after reconnect');
+  assert.equal(nativeTileRequests,tileFetches);logs.push('Host reconnect re-uploads cached images without re-fetching Navigraph or replaying actions');
+  await new Promise((resolve,reject)=>{const s=new WebSocket(`ws://127.0.0.1:${port}/ws/client?side=CA`,{headers});s.on('error',reject);s.on('message',async b=>{const m=JSON.parse(b);if(m.type!=='frame')return;const button=m.nodes.find(n=>n.attrs?.id==='calculate');s.send(JSON.stringify({type:'action',epoch:m.epoch,id:button.id,event:'click',createdAt:Date.now()-10000}));s.send(JSON.stringify({type:'action',epoch:'old-epoch',id:button.id,event:'click',createdAt:Date.now()}));await wait(300);s.close();resolve();});});
+  assert.equal(await native.evaluate(()=>calls.length),1);logs.push('Expired and previous-session commands discarded');
+  for(const service of ['gsx','batc']) await new Promise((resolve,reject)=>{const s=new WebSocket(`ws://127.0.0.1:${port}/services/${service}`,{headers});s.on('open',()=>s.send(JSON.stringify({type:'test',service})));s.on('message',b=>{assert.equal(JSON.parse(b).service,service);s.close();resolve();});s.on('error',reject);});logs.push('GSX and BATC WebSocket proxy round trips');
+  const prefix=`http://127.0.0.1:${port}/assets/Pages/VCockpit/Instruments/PMDGTablet/pmdg-777-300ER/`;
+  assert((await (await fetch(prefix+'remoteClient/js/connection.js',{headers})).text()).includes("location.host + '/services/gsx'"));
+  assert((await (await fetch(prefix+'beyondatc_toolbar/beyondatc_toolbar.js',{headers})).text()).includes("location.host + '/services/batc'"));
+  assert.equal((await fetch(`http://127.0.0.1:${port}/assets/Pages/VCockpit/Instruments/PMDGTablet/lan-bridge/lan-bridge-config.js`,{headers})).status,404);
+  assert.equal(await rejected(`ws://127.0.0.1:${port}/ws/client?side=CA`,{headers:{...headers,Origin:'https://evil.invalid'}}),403);logs.push('Proxy URL rewriting, host config protection and Origin validation');
+  await screen.locator('#side .lan-side-track').tap();await until(async()=>await remote.locator('#offline').isVisible(),'Offline FO not blocked');
+  assert.equal(await remote.locator('#side').getAttribute('aria-checked'),'true');
+  assert.equal(await remote.locator('.lan-side-fo').evaluate(n=>getComputedStyle(n).fontWeight),'700');
+  assert.notEqual(await remote.locator('.lan-side-thumb').evaluate(n=>getComputedStyle(n).transform),'none');
+  await remote.locator('#side .lan-side-fo').tap();await screen.locator('#result').waitFor();assert.equal(await screen.locator('#result').textContent(),'V1 268 25L');logs.push('CA/FO isolation and full-state resynchronization');
+  await remote.reload();await screen.locator('#calculate').waitFor();assert.equal(await screen.locator('#result').textContent(),'V1 268 25L');logs.push('Cookie pairing and reload restore existing state');
+  await require('./autocruise-popup.cjs')({native,remote,screen,tablet,output,until,logs});
+  await native.close();await until(async()=>await remote.locator('#offline').isVisible(),'Native disconnect not visible');
+  assert.equal((await fetch(`http://127.0.0.1:${port}${imagePath}`,{headers})).status,404);logs.push('Native image cache disappears when host disconnects');
+  const next=await browser.newPage({viewport:{width:1280,height:900}});await next.goto(`http://127.0.0.1:${hostPort}/`);await until(async()=>await screen.locator('#result').textContent()==='--','New host session not restored');assert.equal(await next.evaluate(()=>calls.length),0);logs.push('Native session replacement restores state without replaying previous commands');
+  await remote.screenshot({path:path.join(output,'remote-fixture.png')});
+  await remote.close();await wait(1000);const count=await next.evaluate(()=>framesSent);await wait(1000);assert.equal(await next.evaluate(()=>framesSent),count);logs.push('No DOM updates transmitted when no clients subscribe');
+  assert.deepEqual(errors,[]);logs.push('No browser JavaScript errors');
+  for(let i=0;i<4;i++)assert.equal((await fetch(`http://127.0.0.1:${port}/pair`,{method:'POST',headers:{Origin:`http://127.0.0.1:${port}`,'Content-Type':'application/json'},body:JSON.stringify({key:'9999'})})).status,401);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/pair`,{method:'POST',headers:{Origin:`http://127.0.0.1:${port}`,'Content-Type':'application/json'},body:JSON.stringify({key})})).status,429);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/session`,{headers})).status,200);logs.push('Pairing attempts rate limited; existing authenticated session still works');
+  fs.writeFileSync(path.join(output,'integration.json'),JSON.stringify({passed:true,checks:logs,date:new Date().toISOString()},null,2));console.log(logs.join('\n'));
+ } finally { await browser?.close();proc?.kill();server?.close();for(const s of sockets){for(const c of s.clients)c.terminate();s.close();} }
+})().catch(e=>{console.error(e);process.exitCode=1;});
