@@ -1,0 +1,32 @@
+/* theme.css - neutral CHROME tokens only.
+ * NO option/service state->colour map lives here. The only state colours are the
+ * two GSX-emitted status state cues (in status.js's injected fragment, styled in
+ * shell.css), and neutral chrome for the app frame. */
+:root {
+  --bg:         #141414;   /* page background - neutral grey (darkest) */
+  --surface-bg: #202020;   /* chrome / surface background - neutral grey (lighter) */
+  --surface-2:  #2b2b2b;
+  --line:       #363636;
+  --ink:        #ededed;
+  --ink-dim:    #a3a3a3;
+  --accent:     #2f6df6;
+  --accent-2:   #24314a;
+  --warn:       #f2c14e;
+  --danger:     #e5534b;
+  --radius:     6px;    /* one corner radius for every panel/button */
+
+  /* GSX panel button chrome (FSDT_GSX_Panel.css). The DEFAULT is the NORMAL
+     ENTRY palette - brighter, from #menuButtonsHost; the static .cmd buttons
+     override to the darker .bottom-btn palette so they read as subordinate. */
+  --btn-fg:         #e6ecf3;
+  --btn-bg-top:     #6f6f6f;   /* normal entries: brighter (but darker than before) */
+  --btn-bg-bot:     #474747;
+  --btn-border:     rgba(255, 255, 255, 0.08);
+  --btn-edge-hi:    rgba(255, 255, 255, 0.10);
+  --btn-edge-lo:    rgba(0, 0, 0, 0.55);
+  --btn-bg-top-hov: #3b72bf;
+  --btn-bg-bot-hov: #254f8b;
+  --btn-border-hov: rgba(160, 200, 255, 0.55);
+  --btn-bg-act-top: #2c2c2c;
+  --btn-bg-act-bot: #404040;
+}

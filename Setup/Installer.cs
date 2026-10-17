@@ -11,7 +11,8 @@ namespace EfbSetup;
 
 public record InstallationLocation(string Config, string Community);
 public record Detection(List<InstallationLocation> Locations, List<string> Warnings);
-public record InstallOptions(string Community, string SimConfig, bool Lan, int Port = 8385, bool AutoStart = true, bool StartNow = true);
+public record InstallOptions(string Community, string SimConfig, bool Lan, int Port = 8385, bool AutoStart = true, bool StartNow = true, string? AirlabsApiKey = null);
+public class AirlabsSettings { public string ApiKey {get;set;}=""; }
 public class BridgeConfig {
     public int Port {get;set;}=8385;
     public string BindAddress {get;set;}="0.0.0.0";
@@ -102,6 +103,10 @@ public sealed class Installer(string bundle,string root,bool shortcuts=true,stri
     public string Root {get;}=Paths.Full(root);
     string StateFile=>Path.Combine(Root,"install-state.json");
     string ConfigFile=>Path.Combine(Root,"bridge.json");
+    string AirlabsFile=>Path.Combine(Root,"airlabs.json");
+    public AirlabsSettings Airlabs()=>File.Exists(AirlabsFile)?JsonSerializer.Deserialize<AirlabsSettings>(File.ReadAllText(AirlabsFile),Json)??new():new();
+    public const string AirlabsRelative="html_ui/Pages/VCockpit/Instruments/PMDGTablet/shared/simbrief/airlabs-settings.json";
+    public const string AirportsRelative="html_ui/Pages/VCockpit/Instruments/PMDGTablet/shared/simbrief/installed-airports.json";
     string Menu=>menuOverride??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"EFB v2 LAN");
     public InstallState? State()=>File.Exists(StateFile)?JsonSerializer.Deserialize<InstallState>(File.ReadAllText(StateFile),Json):null;
     public BridgeConfig? Config()=>File.Exists(ConfigFile)?JsonSerializer.Deserialize<BridgeConfig>(File.ReadAllText(ConfigFile),Json):null;
@@ -191,7 +196,9 @@ public sealed class Installer(string bundle,string root,bool shortcuts=true,stri
         if(!File.Exists(Path.Combine(source,"manifest.json"))||!Directory.Exists(Path.Combine(source,"html_ui")))throw new IOException("安装包不完整。请解压整个 ZIP，并从解压目录运行 EfbV2Setup.exe。");
         ValidateRoot(community,source);
         var target=Paths.Child(community,"pmdg-tablet-v2");Paths.NoLink(target);
-        var prior=State();var cfg=Config();
+        var prior=State();var cfg=Config();var airlabs=Airlabs();
+        if(options.AirlabsApiKey!=null)airlabs.ApiKey=options.AirlabsApiKey.Trim();
+        if(airlabs.ApiKey.Length>256||airlabs.ApiKey.Any(char.IsWhiteSpace))throw new IOException("AirLabs API key 格式不正确，请检查是否包含空格。");
         if(prior!=null&&!Same(prior.CommunityPath,community))throw new IOException("已安装到其他 Community 文件夹。请先卸载原位置，或选择原来的文件夹。");
         if(cfg!=null&&!Same(cfg.PackagePath,target))throw new IOException("已有 LAN 配置指向其他 EFB，请先处理原安装。");
         var sim=string.IsNullOrWhiteSpace(options.SimConfig)?prior?.SimConfigPath??"":Paths.Full(options.SimConfig);
@@ -210,7 +217,14 @@ public sealed class Installer(string bundle,string root,bool shortcuts=true,stri
             if(options.Lan)CheckPort(cfg);
             // Stage only the new payload; never copy the existing installation.
             stage=Paths.Child(Root,"staging/"+Guid.NewGuid().ToString("N"));
-            log.Report("准备安装文件…");Paths.CopyTree(source,stage);Mode(stage,options.Lan?cfg:null);
+            log.Report("准备安装文件…");Paths.CopyTree(source,stage);
+            var airlabsTarget=Paths.Child(stage,AirlabsRelative);Directory.CreateDirectory(Path.GetDirectoryName(airlabsTarget)!);File.WriteAllText(airlabsTarget,JsonSerializer.Serialize(airlabs,Json),new UTF8Encoding(false));
+            log.Report("扫描本地机场包元数据（不验证模拟器启用状态）…");
+            var airports=AirportScanner.Scan(community,sim);var airportJson=JsonSerializer.Serialize(airports,Json);
+            var airportsTarget=Paths.Child(stage,AirportsRelative);Directory.CreateDirectory(Path.GetDirectoryName(airportsTarget)!);File.WriteAllText(airportsTarget,airportJson,new UTF8Encoding(false));
+            log.Report($"已记录 {airports.Icaos.Length} 个机场代码；{airports.UnresolvedPackages.Length} 个机场包暂未识别代码。流式缓存及名称推断不能确认当前启用状态。");
+            foreach(var warning in airports.Warnings)log.Report("机场扫描提示："+warning);
+            Mode(stage,options.Lan?cfg:null);
             log.Report("安装 EFB v2…");replaced=true;Paths.DeleteTree(target,community);Paths.CopyTree(stage,target);
             checkpoint?.Invoke("package-replaced");
             if(options.Lan) {
@@ -226,7 +240,8 @@ public sealed class Installer(string bundle,string root,bool shortcuts=true,stri
             foreach(var name in new[]{"Common.ps1","Configure.ps1","Stop.ps1","Status.ps1","Uninstall.ps1"})tx.Remove(Path.Combine(Root,name));
             if(xml!=null){log.Report(options.Lan&&options.AutoStart?"注册模拟器自动启动…":"移除本工具的自动启动项…");tx.Write(xmlPath!,xml.Declaration+Environment.NewLine+xml.ToString(SaveOptions.DisableFormatting));}
             var state=new InstallState{CommunityPath=community,SimConfigPath=sim,WithLan=options.Lan,AutoStart=options.Lan&&options.AutoStart,ServiceFiles=options.Lan?services:[],ManagerPath=prior?.ManagerPath};
-            Shortcuts(state,tx);tx.Write(StateFile,JsonSerializer.Serialize(state,Json));
+            Shortcuts(state,tx);tx.Write(StateFile,JsonSerializer.Serialize(state,Json));tx.Write(AirlabsFile,JsonSerializer.Serialize(airlabs,Json));
+            tx.Write(Path.Combine(Root,"installed-airports.json"),airportJson);
         } catch(Exception error) {
             if(!replaced&&wasRunning){try{Start();}catch(Exception restart){log.Report("原 LAN 服务未能重新启动："+restart.Message);}}
             throw new IOException("安装未完成。"+(replaced?"文件可能已部分更新，请排除原因后重新安装。":"")+"原因："+error.Message,error);

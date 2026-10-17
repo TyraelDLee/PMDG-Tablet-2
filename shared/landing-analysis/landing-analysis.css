@@ -1,0 +1,57 @@
+/* Scoped styles: PMDG performance-tool palette, no changes to other EFB apps. */
+#landing_analysis.landing-analysis, #landing_analysis * { box-sizing: border-box; }
+#landing_analysis.landing-analysis { flex-direction: column; width:100%; height:100%; padding:18px 22px 12px; background:#474d52; color:#e7e9eb; font-family:Inter,Arial,sans-serif; overflow:hidden; user-select:none; -webkit-user-select:none; }
+#landing_analysis .la-header { flex:0 0 68px; display:flex; align-items:center; justify-content:space-between; padding:0 12px 12px; }
+#landing_analysis .la-title { font:600 38px Inter,Arial,sans-serif; margin:0; color:#f1f3f4; }
+#landing_analysis .la-status { font-size:22px; color:#ced9e1; text-align:right; margin-left:20px; }
+#landing_analysis .la-body { flex:1 1 0; min-height:0; display:flex; }
+#landing_analysis .la-left { flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; margin-right:18px; }
+#landing_analysis .la-panel { background:#2f3337; border-radius:10px; padding:16px; min-height:0; }
+#landing_analysis .la-current, #landing_analysis .la-previous { flex:1 1 0; display:flex; flex-direction:column; overflow-y:auto; }
+#landing_analysis .la-current { margin-bottom:18px; }
+#landing_analysis .la-section-bar { background:#708090; color:#20272d; display:flex; align-items:center; justify-content:space-between; flex:0 0 48px; min-height:48px; padding:4px 16px; }
+#landing_analysis .la-section-bar h2 { font-size:30px; font-weight:500; margin:0; }
+#landing_analysis .la-badge { font-size:17px; font-weight:600; padding:5px 12px; background:#125b89; color:#f0f4f7; border-radius:5px; }
+#landing_analysis .la-meta { font-size:19px; color:#b9c2c9; flex:0 0 auto; min-height:42px; padding:12px 4px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#landing_analysis .la-metrics { display:flex; flex-wrap:wrap; flex:1 0 auto; align-content:stretch; }
+#landing_analysis .la-metric { width:25%; min-width:0; padding:12px 16px 10px; border-bottom:2px solid #1379b2; display:flex; flex-direction:column; justify-content:center; }
+#landing_analysis .la-g { width:50%; }
+#landing_analysis .la-label { color:#d4d9de; font-size:22px; font-weight:600; margin-bottom:7px; }
+#landing_analysis .la-value { font-family:Inter,Arial,sans-serif; font-size:40px; line-height:1.2; font-weight:500; color:#f6f7f8; white-space:nowrap; }
+#landing_analysis .la-g .la-value { color:#45b7f0; font-size:52px; }
+#landing_analysis .la-unit { color:#a7b3bd; font-size:17px; padding-top:7px; }
+#landing_analysis .la-speed .la-value, #landing_analysis .la-wind .la-value { font-size:33px; }
+#landing_analysis .la-history { flex:0 0 28%; min-width:0; display:flex; flex-direction:column; }
+#landing_analysis .la-count { font-size:21px; }
+#landing_analysis .la-history-note { font-size:19px; color:#b9c2c9; padding:15px 8px; }
+#landing_analysis .la-history-list { flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; touch-action:pan-y; }
+#landing_analysis button.la-history-item { display:flex; flex-direction:column; text-align:left; width:100%; margin:0 0 10px; padding:16px 14px; border:1px solid #58636c; border-left:5px solid transparent; border-radius:5px; background:#3b4248; color:#e9edef; cursor:pointer; font-family:inherit; min-height:90px; }
+#landing_analysis button.la-history-item:hover { background:#455764; }
+#landing_analysis button.la-history-item.la-selected { border-left-color:#34b7fa; border-color:#168cc9; background:#14547b; }
+#landing_analysis button.la-history-item:focus-visible { outline:2px solid #5ec8ff; outline-offset:-3px; }
+#landing_analysis .la-history-time { font-size:21px; font-weight:600; margin-bottom:9px; }
+#landing_analysis .la-history-aircraft { font-size:20px; line-height:1.4; overflow-wrap:break-word; }
+#landing_analysis .la-empty { font-size:22px; line-height:1.6; color:#b2bdc6; padding:30px 12px; }
+#landing_analysis .la-footer { flex:0 0 35px; font-size:17px; color:#bdc8cf; padding:12px 4px 0; }
+#landing_analysis ::-webkit-scrollbar { width:8px; }
+#landing_analysis ::-webkit-scrollbar-thumb { background:#82919e; border-radius:5px; }
+#landing_analysis ::-webkit-scrollbar-track { background:#272c30; }
+@media (max-width:1300px) {
+ #landing_analysis.landing-analysis { padding:12px; }
+ #landing_analysis .la-header { flex-basis:52px; }
+ #landing_analysis .la-title { font-size:28px; }
+ #landing_analysis .la-status, #landing_analysis .la-label { font-size:17px; }
+ #landing_analysis .la-panel { padding:10px; }
+ #landing_analysis .la-section-bar { min-height:36px; flex-basis:36px; padding:4px 10px; }
+ #landing_analysis .la-section-bar h2 { font-size:23px; }
+ #landing_analysis .la-badge { font-size:12px; }
+ #landing_analysis .la-meta { font-size:14px; min-height:34px; }
+ #landing_analysis .la-metric { padding:8px; }
+ #landing_analysis .la-value { font-size:29px; }
+ #landing_analysis .la-g .la-value { font-size:40px; }
+ #landing_analysis .la-speed .la-value, #landing_analysis .la-wind .la-value { font-size:25px; }
+ #landing_analysis .la-unit { font-size:12px; }
+ #landing_analysis .la-history-time, #landing_analysis .la-history-aircraft, #landing_analysis .la-history-note { font-size:15px; }
+ #landing_analysis button.la-history-item { padding:12px 9px; min-height:75px; }
+ #landing_analysis .la-footer { font-size:13px; }
+}

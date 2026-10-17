@@ -4,6 +4,7 @@ namespace EfbSetup;
 public sealed class SetupForm:Form {
     readonly ComboBox community=new(){Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDown};
     readonly TextBox sim=new(){Dock=DockStyle.Fill};
+    readonly TextBox airlabs=new(){Dock=DockStyle.Fill,UseSystemPasswordChar=true,PlaceholderText="可选；用于 SimBrief 随机真实航班"};
     readonly RadioButton only=new(){Text="仅安装 EFB",AutoSize=true};
     readonly RadioButton lan=new(){Text="安装 EFB + LAN 服务",AutoSize=true,Checked=true};
     readonly NumericUpDown port=new(){Minimum=1024,Maximum=65535,Value=8385,Width=105};
@@ -44,8 +45,8 @@ public sealed class SetupForm:Form {
         inputs.Controls.Add(new Label{Text="LAN 端口",AutoSize=true,Padding=new Padding(0,5,0,0)},0,3);
         var network=new FlowLayoutPanel{Dock=DockStyle.Fill};network.Controls.Add(port);network.Controls.Add(applyPort);inputs.Controls.Add(network,1,3);
         var checks=new FlowLayoutPanel{Dock=DockStyle.Fill};checks.Controls.Add(auto);checks.Controls.Add(startNow);inputs.Controls.Add(checks,1,4);inputs.SetColumnSpan(checks,2);
-        inputs.Controls.Add(new Label{Text="工具安装目录",AutoSize=true,Padding=new Padding(0,4,0,0)},0,5);
-        var rootLabel=new TextBox{Text=Paths.DefaultRoot,ReadOnly=true,BorderStyle=BorderStyle.None,Dock=DockStyle.Fill};inputs.Controls.Add(rootLabel,1,5);inputs.SetColumnSpan(rootLabel,2);
+        inputs.Controls.Add(new Label{Text="AirLabs API key",AutoSize=true,Padding=new Padding(0,4,0,0)},0,5);
+        inputs.Controls.Add(airlabs,1,5);inputs.SetColumnSpan(airlabs,2);
         layout.Controls.Add(inputs,0,3);
         var tools=new FlowLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(0,6,0,0)};tools.Controls.Add(start);tools.Controls.Add(stop);tools.Controls.Add(config);
         var info=new Button{Text="连接信息",AutoSize=true};tools.Controls.Add(info);info.Click+=async(_,_)=>await Work(()=>{LogThread(engine.ConnectionDetails());var cfg=engine.Config();if(cfg==null)return;try{using var http=new System.Net.Http.HttpClient{Timeout=TimeSpan.FromSeconds(3)};var health=http.GetStringAsync($"http://127.0.0.1:{cfg.Port}/health").GetAwaiter().GetResult();using var json=System.Text.Json.JsonDocument.Parse(health);var sides=string.Join(", ",json.RootElement.GetProperty("hosts").EnumerateArray().Select(x=>x.GetString()));LogThread("LAN 服务在线；模拟器平板："+(sides.Length>0?sides:"尚未连接"));}catch{LogThread("LAN 服务未响应，可检查服务日志。");}});
@@ -55,7 +56,7 @@ public sealed class SetupForm:Form {
         Controls.Add(layout);
         lan.CheckedChanged+=(_,_)=>Availability();only.CheckedChanged+=(_,_)=>Availability();
         community.SelectedIndexChanged+=(_,_)=>{var entry=detected.FirstOrDefault(x=>x.Community==community.Text);if(entry!=null)sim.Text=entry.Config;};
-        install.Click+=async(_,_)=>{var options=new InstallOptions(community.Text,sim.Text,lan.Checked,(int)port.Value,auto.Checked,startNow.Checked);await Work(()=>Log(engine.Install(options,new ProgressRelay(LogThread))));};
+        install.Click+=async(_,_)=>{var options=new InstallOptions(community.Text,sim.Text,lan.Checked,(int)port.Value,auto.Checked,startNow.Checked,airlabs.Text);await Work(()=>Log(engine.Install(options,new ProgressRelay(LogThread))));};
         uninstall.Click+=async(_,_)=>{if(MessageBox.Show(this,"将移除 pmdg-tablet-v2 和 LAN 服务及其自动启动项，不恢复旧版本。是否继续？","卸载 EFB v2",MessageBoxButtons.YesNo,MessageBoxIcon.Question)==DialogResult.Yes)await Work(()=>engine.Uninstall(new ProgressRelay(LogThread)));};
         start.Click+=async(_,_)=>await Work(()=>{engine.Start();LogThread("LAN 服务已启动。\r\n"+engine.ConnectionDetails());});
         stop.Click+=async(_,_)=>await Work(()=>{engine.Stop();LogThread("LAN 服务已停止。");});
@@ -63,7 +64,7 @@ public sealed class SetupForm:Form {
         applyPort.Click+=async(_,_)=>{var value=(int)port.Value;await Work(()=>{engine.ApplyPort(value);LogThread("端口配置已更新，下次进入飞机时生效。\r\n"+engine.ConnectionDetails());});};
         FormClosing+=(_,e)=>{if(busy)e.Cancel=true;};
         if(preview){community.Text=@"A:\Games\MSFS2024\Community";sim.Text=@"C:\Users\Pilot\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache";output.Text="检测到 MSFS 2024 的 Community 文件夹。\r\n选择安装模式后，点击“安装 / 更新”。\r\n安装会更新 pmdg-tablet-v2，不创建备份。";}
-        else {Detect();Safe(()=>{var state=engine.State();if(state!=null){community.Text=state.CommunityPath;sim.Text=state.SimConfigPath;lan.Checked=state.WithLan;only.Checked=!state.WithLan;auto.Checked=state.AutoStart;var cfg=engine.Config();if(cfg!=null&&cfg.Port is >=1024 and <=65535)port.Value=cfg.Port;Log("已载入现有安装。模式："+(state.WithLan?"EFB + LAN":"仅 EFB"));}if(!hasPayload)Log("此窗口可管理、配置和卸载。安装或更新请从解压后的完整安装包运行。 ");});}
+        else {Detect();Safe(()=>{airlabs.Text=engine.Airlabs().ApiKey;var state=engine.State();if(state!=null){community.Text=state.CommunityPath;sim.Text=state.SimConfigPath;lan.Checked=state.WithLan;only.Checked=!state.WithLan;auto.Checked=state.AutoStart;var cfg=engine.Config();if(cfg!=null&&cfg.Port is >=1024 and <=65535)port.Value=cfg.Port;Log("已载入现有安装。模式："+(state.WithLan?"EFB + LAN":"仅 EFB"));}if(!hasPayload)Log("此窗口可管理、配置和卸载。安装或更新请从解压后的完整安装包运行。 ");});}
         Availability();
     }
     void AddRow(string label,Control control,int row,Action browse){inputs.Controls.Add(new Label{Text=label,AutoSize=true,Padding=new Padding(0,5,0,0)},0,row);inputs.Controls.Add(control,1,row);var button=new Button{Text="浏览…",Dock=DockStyle.Fill};button.Click+=(_,_)=>Safe(browse);inputs.Controls.Add(button,2,row);}

@@ -8,6 +8,32 @@ internal static class SelfTest {
     static void Check(bool value,string reason){if(!value)throw new Exception(reason);}
     static void Put(string file,string text){Directory.CreateDirectory(Path.GetDirectoryName(file)!);File.WriteAllText(file,text);}
     static int FreePort(){var l=new TcpListener(IPAddress.Loopback,0);l.Start();var port=((IPEndPoint)l.LocalEndpoint).Port;l.Stop();return port;}
+    static void ScanAirports(string root) {
+        var packages=Path.Combine(root,"Scanner");var community=Path.Combine(packages,"Community2024");var config=Path.Combine(root,"ScannerConfig");Directory.CreateDirectory(community);
+        Put(Path.Combine(config,"UserCfg.opt"),$"InstalledPackagesPath \"{packages}\"");
+        Put(Path.Combine(community,"maker-airport-vhhh-hongkong","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"VHHH Hong Kong Airport\"}");
+        Put(Path.Combine(community,"maker-airport-vhhh-hongkong","layout.json"),"{\"content\":[{\"path\":\"AirportServices/VHHH/Services.spb\"}]}");
+        Put(Path.Combine(packages,"Community","maker-yaye-ayersrock","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"YAYE Ayers Rock Airport\"}");
+        Put(Path.Combine(packages,"Official2024","OneStore","maker-airport-ymml-melbourne","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"YMML Melbourne Airport\",\"package_order_hint\":\"CUSTOM_AIRPORT\"}");
+        Put(Path.Combine(packages,"StreamedPackages","fs20-maker-airport-ebbr-brussels","content","minimal.fsarchive"),"Do not decode or change");
+        Put(Path.Combine(packages,"Official2020","Steam","maker-airport-vhhh-hongkong","manifest.json"),"{\"content_type\":\"SCENERY\"}");
+        Put(Path.Combine(community,"global-services","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"Global Services\"}");
+        Put(Path.Combine(community,"global-services","layout.json"),"{\"content\":[{\"path\":\"AirportServices/KLAX/Services.spb\"}]}");
+        Put(Path.Combine(community,"aircraft-airport-kjfk","manifest.json"),"{\"content_type\":\"AIRCRAFT\"}");
+        Put(Path.Combine(community,"maker-airport-lasvegas","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"Las Vegas Airport\"}");
+        Put(Path.Combine(community,"bad-airport-egll-london","manifest.json"),"broken JSON");
+        Put(Path.Combine(community,"maker-airport-city","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"CITY Airport scenery\"}");
+        Put(Path.Combine(community,"maker-airport-vhhh-extra","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"BATC Airport compatibility\"}");
+        var before=Directory.GetFiles(packages,"*",SearchOption.AllDirectories).ToDictionary(p=>p,File.ReadAllText);
+        var inventory=AirportScanner.Scan(community,config);
+        Check(inventory.Icaos.SequenceEqual(new[]{"EBBR","EGLL","VHHH","YAYE","YMML"}),"Scanner extracts sorted distinct Community, Official and streamed ICAOs, ignoring service/aircraft packs");
+        Check(inventory.Airports.Single(a=>a.Icao=="VHHH").Packages.Length==3&&!inventory.Icaos.Contains("BATC"),"Scanner retains provenance and prefers airport codes over unrelated title words");
+        Check(inventory.UnresolvedPackages.Length==2&&inventory.Warnings.Length==1,"Scanner records unknown packages and bad metadata without failing");
+        Check(!inventory.AvailabilityVerified&&inventory.ScannedAtUtc!=null,"Scanner does not claim package enablement");
+        var json=JsonSerializer.Serialize(inventory);Check(!json.Contains(packages.Replace("\\","\\\\")),"Shared inventory contains no absolute local paths");
+        foreach(var file in before)Check(File.ReadAllText(file.Key)==file.Value,"Scanner must not change scenery packages");
+        Check(AirportScanner.Scan(community,"").Icaos.SequenceEqual(inventory.Icaos),"Scanner supports EFB-only install without UserCfg");
+    }
     static void CheckImports(string package,bool lan) {
         var entries=Directory.GetFiles(package,"PMDGTablet*.html",SearchOption.AllDirectories);
         Check(entries.Length>0,"Tablet pages exist");
@@ -24,6 +50,7 @@ internal static class SelfTest {
         var root=Path.Combine(output,"gui-test-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
         var checks=new List<string>();var log=new List<string>();
         try {
+            ScanAirports(root);checks.Add("机场元数据扫描：Community/Community2024、Official2020/2024、流式缓存、去重来源、无配置路径、损坏文件与未识别包；不修改机场文件，不确认启用状态");
             var local=Path.Combine(root,"本地资料");var roaming=Path.Combine(root,"用户资料");
             var cfgRoot=Path.Combine(local,"Packages","Microsoft.Limitless_8wekyb3d8bbwe","LocalCache");
             Check(Paths.Detect(local,roaming).Locations.Count==0,"Empty discovery");
@@ -49,7 +76,10 @@ internal static class SelfTest {
             Put(Path.Combine(community,"pmdg-aircraft-777","vendor.txt"),"Vendor package stays intact");
             Put(Path.Combine(target,"original.txt"),"original EFB");
             var engine=new Installer(bundle,app,false);var progress=new Log(log);
-            engine.Install(new(community,"",false,StartNow:false),progress);
+            engine.Install(new(community,"",false,StartNow:false,AirlabsApiKey:"SELF-TEST-ONLY-KEY"),progress);
+            Check(engine.Airlabs().ApiKey=="SELF-TEST-ONLY-KEY","AirLabs key persisted in EFB-only mode");
+            Check(File.ReadAllText(Path.Combine(target,Installer.AirlabsRelative)).Contains("SELF-TEST-ONLY-KEY"),"Native AirLabs settings installed");
+            Check(File.ReadAllText(Path.Combine(target,Installer.AirportsRelative))==File.ReadAllText(Path.Combine(app,"installed-airports.json")),"Airport snapshot copied to native EFB and local app data");
             Check(engine.State()?.WithLan==false,"EFB-only state");
             Check(!Directory.Exists(Path.Combine(target,Installer.HostRelative)),"EFB-only host removed");
             Check(!File.ReadAllText(Path.Combine(target,htmlRelative)).Contains("lan-bridge"),"EFB-only imports removed");
@@ -64,6 +94,8 @@ internal static class SelfTest {
             Put(Path.Combine(cfgRoot,"exe.xml"),"<SimBase.Document Type=\"Launch\" version=\"1,0\"><Launch.Addon><Name>Other Addon</Name><Path>C:\\Other.exe</Path></Launch.Addon></SimBase.Document>");
             var port=FreePort();var options=new InstallOptions(community,cfgRoot,true,port,true,false);
             engine.Install(options,progress);var key=engine.Config()!.PairingKey;
+            Check(engine.Airlabs().ApiKey=="SELF-TEST-ONLY-KEY","AirLabs key preserved on update with unspecified key");
+            Check(File.ReadAllText(Path.Combine(target,Installer.AirlabsRelative)).Contains("SELF-TEST-ONLY-KEY"),"Key restored to updated package");
             Check(System.Text.RegularExpressions.Regex.IsMatch(key,@"\A[0-9]{4}\z"),"Four digit pairing code");
             var oldConfig=engine.Config()!;var originalHostKey=oldConfig.HostKey;oldConfig.PairingKey="legacy-long-pairing-code";
             File.WriteAllText(Path.Combine(app,"bridge.json"),JsonSerializer.Serialize(oldConfig));
@@ -98,6 +130,8 @@ internal static class SelfTest {
             using(var layout=JsonDocument.Parse(File.ReadAllText(Path.Combine(target,"layout.json"))))foreach(var item in layout.RootElement.GetProperty("content").EnumerateArray())Check(new FileInfo(Path.Combine(target,item.GetProperty("path").GetString()!)).Length==item.GetProperty("size").GetInt64(),"Layout sizes");
             checks.Add("图形管理器修改端口，更新原生配置及 layout.json");
             engine.Install(options with{Lan=false},progress);
+            Check(engine.Airlabs().ApiKey=="SELF-TEST-ONLY-KEY","Key preserved when switching installation mode");
+            engine.Install(options with{Lan=false,AirlabsApiKey=""},progress);Check(engine.Airlabs().ApiKey=="","Explicit empty key clears settings");
             CheckImports(target,false);
             Check(engine.State()?.WithLan==false&&!File.Exists(Path.Combine(app,"EfbLanBridge.exe")),"Downgrade service removed");
             xml=XDocument.Load(Path.Combine(cfgRoot,"exe.xml"));Check(xml.Root!.Elements("Launch.Addon").Single().Element("Name")!.Value=="Other Addon","Downgrade only removes owned entry");

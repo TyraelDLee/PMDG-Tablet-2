@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/leety/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-const base=path.resolve(__dirname,'..'),dir=path.join(base,'landing-analysis');
+const base=path.resolve(__dirname,'..'),dir=path.join(base,'shared/landing-analysis');
 const Core=require(path.join(dir,'core.js'));
 let sample={},readNames=[];
 const root={LandingAnalysisCore:Core,addEventListener(){}};

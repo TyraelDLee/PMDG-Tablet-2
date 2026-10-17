@@ -1,0 +1,48 @@
+/* Mouse drag scrolling for iframe documents; touch keeps native scrolling. */
+(function () {
+    var drag = null, suppressUntil = 0;
+    function scrollParent(node) {
+        while (node && node !== document) {
+            if (node.nodeType === 1) {
+                var style = window.getComputedStyle(node);
+                if (/auto|scroll/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 1) return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+    document.addEventListener('mousedown', function (event) {
+        if (event.button !== 0) return;
+        var target = event.target;
+        if (target.closest && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+        var node = scrollParent(target);
+        if (!node) return;
+        drag = {node:node, x:event.clientX, y:event.clientY, top:node.scrollTop, active:false};
+    }, true);
+    document.addEventListener('mousemove', function (event) {
+        if (!drag) return;
+        if (!drag.active && Math.abs(event.clientY-drag.y) < 6) return;
+        drag.active = true;
+        suppressUntil = Date.now() + 500;
+        drag.node.scrollTop = drag.top - (event.clientY-drag.y);
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
+    function end() {
+        if (drag && drag.active) suppressUntil = Date.now() + 500;
+        drag = null;
+    }
+    document.addEventListener('mouseup', end, true);
+    window.addEventListener('blur', end);
+    document.addEventListener('mouseleave', end);
+    document.addEventListener('click', function (event) {
+        if (Date.now() < suppressUntil) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            suppressUntil = 0;
+        }
+    }, true);
+    document.addEventListener('dragstart', function (event) {
+        if (drag) event.preventDefault();
+    }, true);
+})();

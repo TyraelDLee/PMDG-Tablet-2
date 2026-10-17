@@ -1,0 +1,608 @@
+/* efb.css - legacy-Coherent compatibility overrides for the MSFS 2024 EFB.
+ *
+ * Loaded ONLY when the host engine lacks clamp() (see the detector in
+ * index.html), i.e. the EFB's old Chromium-based Coherent. That engine does NOT
+ * support: clamp(), aspect-ratio, gap (flex/grid shorthand), dvh/lvh, :has().
+ * It DOES support: flexbox, calc(), CSS variables, vw/vh/vmin, em/%/px.
+ *
+ * So every rule here re-specifies a piece of layout that shell.css expressed
+ * with an unsupported feature, using only safe equivalents:
+ *   gap            -> margins on children
+ *   clamp(a,b,c)   -> a single vmin/vw/px size (no min/max bounds)
+ *   aspect-ratio   -> an explicit (vw-based) height
+ *   dvh/lvh        -> vh / fixed heights
+ *
+ * Everything is scoped under `.legacy` (set on <html> by the detector) so it
+ * outranks the matching shell.css rule by one class of specificity and never
+ * affects real browsers (where this file isn't even loaded).
+ *
+ * Sizes are tuned for the EFB's ~684x912 portrait panel but use vmin/vw so they
+ * still scale across EFB panel sizes.
+ */
+
+/* ----- font ---------------------------------------------------------------
+   The client's default stack (-apple-system / system-ui / sans-serif) doesn't
+   exist in the EFB's Coherent, so it falls back to a glyph-poor face and symbols
+   (checkmarks, stars, arrows, em-dashes, …) render as tofu. Use the EFB's own
+   font stack (its `--font-Default`); that variable lives on the EFB OS document,
+   not in this iframe, so we name the stack explicitly. Form controls don't
+   inherit font-family, so they're listed too. */
+/* The EFB's own Roboto/Arial/etc. are @font-face'd in the EFB OS document, which
+   is a DIFFERENT document from this iframe - @font-face is per-document, so we
+   can't reach them by name (and there's no usable system fallback either, hence
+   the tofu). So bundle Roboto (Apache-licensed) and serve it same-origin from
+   the GSX web root; that the iframe CAN load. */
+/* Use MSFS's own fonts straight from the VFS - coui://html_ui is the merged
+   virtual file system across all installed packages, so these paths are stable
+   and install-location-independent (Xbox/Steam). The iframe loads coui://
+   cross-scheme fine (verified in-sim), so NOTHING is bundled. Roboto is the
+   text face; NotoSansSC (huge Unicode coverage, also shipped by fs-base-efb) is
+   the per-glyph fallback so symbols Roboto lacks render instead of blanking. */
+/* Weight ladder (the client uses 500/600/700). Separate rules per weight (not
+   the `font-weight: a b` range descriptor) for old-Coherent safety. Roboto has
+   no native 600, so map the client's 600 (semibold) to Medium and 700 to Bold -
+   real faces instead of synthesised faux-bold. */
+/* SYMBOL fallback: Roboto (below) and NotoSansSC both LACK heart ♥ (U+2665), ❤
+   (U+2764) and airplane ✈ (U+2708) - verified against the actual .ttf cmaps - so
+   they tofu'd in list labels (saved positions, runway starts). The ONLY
+   MSFS-shipped font that has all three is the Roboto+Meiryo (Japanese) merge,
+   loaded here from the SAME efb_os tree the other fonts come from (the
+   coui://html_ui/Fonts/ copy was unconfirmed-loadable from this iframe; efb_os is
+   confirmed). It's ~6MB, so `unicode-range` scopes it to the symbol blocks: the
+   browser loads it ONLY when such a glyph actually appears, never for normal text.
+   One weight suffices for a symbol fallback. */
+@font-face {
+  font-family: "GSXSymbols";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/Roboto/RobotoMono-Medium+meiryobui.ttf") format("truetype");
+  unicode-range: U+2190-21FF, U+2300-27BF, U+2B00-2BFF, U+1F000-1FAFF;
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: "GSXRoboto";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/Roboto/Roboto-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "GSXRoboto";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/Roboto/Roboto-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: "GSXRoboto";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/Roboto/Roboto-Medium.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: "GSXRoboto";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/Roboto/Roboto-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "GSXNoto";
+  src: url("coui://html_ui/efb_ui/efb_os/Assets/fonts/NotoSansSC/NotoSansSC-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+.legacy {
+  --efb-font: "GSXRoboto", "GSXSymbols", "GSXNoto", sans-serif;
+}
+.legacy body,
+.legacy button,
+.legacy input,
+.legacy select,
+.legacy textarea,
+.legacy #statusSurface {
+  font-family: var(--efb-font);
+}
+
+/* ----- visible scrollbars ------------------------------------------------- */
+/* Coherent renders scrollbars zero-width / overlay by default, so a scrollable
+   surface gives no hint it can scroll. Style them explicitly (classic, space-
+   taking) so it's obvious. Applies to every scroll container inside the app. */
+.legacy ::-webkit-scrollbar { width: 12px; height: 12px; }
+.legacy ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
+.legacy ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.32);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 6px;
+}
+.legacy ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+
+/* ----- document lock ------------------------------------------------------
+   Pin <html>/<body> to exactly the panel size with NO overflow, so the iframe
+   document can never grow past its box. The .app (portrait) / menu surface
+   (landscape) are the real scroll containers. Without this, a tall menu - e.g.
+   a long list after a page change - let the body overflow and pushed the
+   command bar past the panel edge ("leaking out of the EFB border"). */
+html.legacy,
+.legacy body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* ----- Coherent stale-paint guard -----------------------------------------
+   Coherent leaves ghost trails of any element that owns its OWN paint layer when
+   it scrolls or the menu DOM is rebuilt - the engine fails to invalidate that
+   layer, so an icon / button-border gets stamped behind. `filter` (the state-
+   colour icon tints) and `box-shadow` (the button bevels) each promote a layer,
+   so strip them in the EFB and let the content paint in the main layer the
+   engine actually clears. Also drop transitions (their trailing frames are part
+   of what's left behind). The state colour still shows on the LABEL text. */
+.legacy .surface--menu *,
+.legacy .surface--status * {
+  transition: none !important;
+}
+/* TEST: icon filters re-enabled (the state-colour tints). If the ghost stays
+   gone, box-shadow was the real trigger and we keep the coloured icons. If it
+   returns, the filter is the culprit and we drop it again. */
+.legacy .cell,
+.legacy .opt,
+.legacy .cmd,
+.legacy .menu-toggle,
+.legacy .menu-head {
+  box-shadow: none !important;
+}
+
+/* Hover feedback. shell.css gates its hover rules behind
+   `@media (hover: hover) and (pointer: fine)`, which the EFB's Coherent doesn't
+   match, so buttons gave no hover response. Re-add it unconditionally for the
+   EFB (the blue-gradient hover the in-game panel uses). */
+.legacy .opt:hover,
+.legacy .cell:hover,
+.legacy .cmd:hover,
+.legacy .menu-toggle:hover,
+.legacy .set-btn:hover,
+.legacy .settings-tab:hover,
+.legacy .settings-subtab:hover {
+  background: linear-gradient(180deg, var(--btn-bg-top-hov) 0%, var(--btn-bg-bot-hov) 100%);
+  border-color: var(--btn-border-hov);
+  color: #fff;
+}
+
+/* ----- app shell: plain scrolling layout (T9 cells at full, readable size) -
+   The whole menu/status flows naturally and scrolls; the command bar reflows
+   with it, but the Coherent ghost that caused is handled by nudgeRepaint() in
+   menu.js, so we DON'T need the bounded/pinned split (which crushed the T9
+   cells). The app is `height:100%` (chained from the html/body lock), NOT 100vh:
+   in the 2D overlay Coherent computes `vh` against the whole screen. */
+.legacy .app {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px;
+}
+.legacy .surface--menu { margin-bottom: 4px; }
+
+/* Flatten the surface "cards" on the EFB: the EFB OS already provides the panel
+   chrome, so the bordered/padded menu + status surfaces were chrome-inside-
+   chrome that ate ~20px/side. Drop the border/radius/background and trim padding
+   so content fills the panel; the status block keeps a hairline top SEPARATOR
+   (instead of a full border) so it stays visually distinct from the entries. */
+.legacy .surface {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px;
+}
+.legacy #statusSurface {
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  padding-top: 7px;
+}
+
+/* EFB layout regroup (built by efbReflow() in menu.js, legacy-only): the
+   open/close button + command bar (+ receipt) live in `.efb-chrome`, and that
+   plus the status surface share a right-hand column `.efb-right`. In portrait it
+   simply stacks under the menu (the page scrolls), preserving the original
+   visual order: header, entries, buttons, status. */
+.legacy .efb-right { display: flex; flex-direction: column; min-width: 0; }
+.legacy .efb-chrome { flex: 0 0 auto; }
+
+/* landscape (JS orientation class): menu ENTRIES on the left; the buttons
+   (open/close -> command bar) then the status on the right - each column
+   scrolls, replacing the grid-columns layout. */
+.legacy.efb-landscape .app {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+.legacy.efb-landscape .surface--menu {
+  flex: 3 1 0%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  margin-right: 10px;
+  margin-bottom: 0;
+  display: flex;            /* flex column so an in-menu document can fill it */
+  flex-direction: column;
+}
+.legacy.efb-landscape .efb-right {
+  flex: 2 1 0%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.legacy.efb-landscape .efb-chrome { flex: 0 0 auto; margin-bottom: 8px; }
+.legacy.efb-landscape #statusSurface {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow-y: auto;
+}
+
+/* portrait: give the entry area a FIXED share of the panel height so the buttons
+   (and status below them) always sit at the same place no matter how many
+   entries there are. The menu surface is a fixed fraction of the column with the
+   entries scrolling inside it; the right column (buttons + status) takes the
+   rest. Proportions of the panel-sized .app (NOT vh - unreliable in the 2D
+   overlay). */
+.legacy.efb-portrait .app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.legacy.efb-portrait .surface--menu {
+  flex: 0 0 70%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.legacy.efb-portrait .surface--menu > .menu-grid,
+.legacy.efb-portrait .surface--menu > .menu-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.legacy.efb-portrait .efb-right {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.legacy.efb-portrait .efb-chrome { flex: 0 0 auto; }
+.legacy.efb-portrait #statusSurface {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* During boot the right column is hidden, so the menu surface (which holds the
+   startup bars) must take the WHOLE column height instead of its fixed 70% - else
+   the bars only get 70% and scroll/clip early. */
+.legacy.efb-portrait body.booting .surface--menu { flex: 1 1 auto; }
+
+/* ----- menu CLOSED: status fills the empty entry area ---------------------
+   While closed there are no entries, so efbReflow() parks the status surface
+   INSIDE the menu surface to fill the empty entry area. Make that surface a
+   column so the status fills below the title. Crucially the right column
+   (buttons) is left EXACTLY as in the open layout, so the buttons do NOT shift
+   when the menu opens - only the status appears/disappears. `gsx-menu-open` is
+   set on <html> by menu.js. */
+.legacy:not(.gsx-menu-open) .surface--menu {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.legacy:not(.gsx-menu-open) .surface--menu > #statusSurface {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Menu surface = a plain scrolling block: entries take their natural height
+   (full-size T9 cells / list rows) and the surface scrolls. Drop shell.css's
+   flex-floor machinery that otherwise crushes/overflows them. */
+.legacy .surface--menu {
+  display: block;
+  overflow-y: auto;
+}
+.legacy .surface--menu > .menu-grid,
+.legacy .surface--menu > .menu-list {
+  flex: none;
+  min-height: 0;
+}
+
+/* ----- menu header -------------------------------------------------------- */
+/* Fixed height + vertically-centred content so the title bar is the same size
+   whether it's one line or two (the entries below don't shift). */
+.legacy .menu-head {
+  padding: 5px 12px;
+  height: 9vmin;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.legacy .menu-head .m-title { font-size: 3.2vmin; }
+.legacy .menu-head .m-sub { font-size: 2.1vmin; }
+
+/* ----- T9 grid: flex-wrap of fixed-ratio cells (no grid gap / aspect-ratio) */
+/* align-content:flex-start packs the wrapped rows at the TOP - otherwise, when
+   the grid fills the fixed-height entry area, the default `stretch` spreads the
+   rows apart so fewer rows shift position. */
+.legacy .menu-grid { display: flex; flex-wrap: wrap; align-content: flex-start; }
+.legacy .menu-grid .cell {
+  box-sizing: border-box;
+  width: 32.3%;
+  height: 19vmin;          /* vmin keeps the cell shape stable when the panel flips orientation */
+  margin: 0.5%;
+  padding: 3% 1%;          /* less lateral padding so the label has more width */
+}
+.legacy .cell .cell-ico { width: 9vmin; height: 9vmin; }
+.legacy .cell .cell-label { font-size: 2.8vmin; }
+.legacy .cell .cell-key { font-size: 2.4vmin; }
+
+/* ----- vertical list rows (operator pickers, gate lists, submenus) --------
+   Same legacy fix as the T9 cells. shell.css sizes these with clamp fonts,
+   flex `gap`, %-of-row icon heights and a dvh-based --list-rowh, all via
+   4-class selectors - so these overrides use the SAME depth (prefixed with
+   .legacy) or shell's rules win and the rows render like the broken T9 did. */
+.legacy .menu-list { display: block; }
+.legacy .surface--menu .menu-list .opt {
+  height: auto;
+  min-height: 7.6vmin;
+  padding: 0 6px;
+  overflow: visible;
+  margin-bottom: 2px;
+}
+/* fixed (vmin) icon height with auto width keeps aspect; replaces shell's
+   `height: 82%` of an auto-height row (which sized the icon wrong here). */
+.legacy .surface--menu .menu-list .opt .opt-ico {
+  width: auto;
+  height: 6.4vmin;
+  max-width: 38%;
+  margin-right: 12px;       /* stands in for the failing flex `gap` */
+}
+.legacy .surface--menu .menu-list .opt .opt-ico.wide {
+  height: 6.4vmin;
+  max-width: 55%;
+}
+.legacy .surface--menu .menu-list .opt .opt-label {
+  font-size: 3.1vmin;
+}
+
+/* ----- open/close toggle -------------------------------------------------- */
+.legacy .menu-toggle { min-height: 9vmin; font-size: 3.8vmin; margin-top: 0; }
+
+/* Message/tooltip slot: fixed 9vmin height, text centred, larger font. The
+   height is kept even when empty (shell.css makes the empty one transparent), so
+   the buttons below stay in the same position whether or not there's a message. */
+.legacy .menu-banner {
+  min-height: 9vmin;
+  height: 9vmin;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.8vmin;
+  margin: 1px 0;
+}
+
+/* Invoice notification: same height as the message slot (9vmin), tighter
+   padding, larger text. (gap is unsupported -> margin on the logo instead.) */
+.legacy .receipt-banner {
+  min-height: 9vmin;
+  height: 9vmin;
+  box-sizing: border-box;
+  padding: 0 10px;
+  margin: 1px 0;
+  font-size: 2.8vmin;
+}
+/* Bigger operator logo without growing the banner: fill most of the fixed 9vmin
+   height and trim the white chip's own padding. */
+.legacy .receipt-banner .receipt-logo {
+  height: 7.6vmin;
+  box-sizing: border-box;
+  max-width: 50%;
+  margin-right: 10px;
+  padding: 2px 4px;
+}
+
+/* ----- command buttons (the "static" buttons that were huge) -------------- */
+.legacy .cmd-grid { display: flex; flex-wrap: wrap; }
+.legacy .cmd-grid .cmd {
+  box-sizing: border-box;
+  width: 49.2%;
+  min-height: 9vmin;
+  margin: 0.4%;
+  font-size: 3.3vmin;
+}
+.legacy .cmd-grid .cmd--wide { width: 100%; padding: 4px 8px; }   /* SimBrief: own row, tighter text padding */
+.legacy .cmd img { width: 7vmin; height: 7vmin; margin-right: 8px; }
+.legacy .cmd .cmd-sub { font-size: 2.3vmin; }
+
+/* ----- status surface -----------------------------------------------------
+   shell.css already lays each row out with flexbox (icon + body side by side)
+   but spaces them with `gap`, which the EFB's Coherent ignores - so keep the
+   flex layout and replace the gap with a margin on the icon. (A previous block-
+   display override made the body wrap onto its own line below the icon.) */
+/* Base size for the status block. Everything inside is em-based (state 1.1em,
+   detail .92em, the icon 2.6em), so raising this scales ALL the text AND the
+   service icon together. */
+.legacy #statusSurface { font-size: 3vmin; }
+.legacy #statusSurface .status-service { display: flex; align-items: center; }
+.legacy #statusSurface .status-service.has-icon::before {
+  flex: 0 0 auto;
+  margin-right: 8px;
+}
+.legacy #statusSurface .status-body { flex: 1 1 auto; min-width: 0; }
+
+/* ----- invoice overlay + in-menu documents -------------------------------
+   The EFB's old Coherent lacks `inset` (Chromium 87+) and `env()` (69+), so the
+   invoice overlay's `inset:0` was ignored - its fixed edges stayed `auto`, it
+   collapsed to nothing, and clicking the receipt looked like it just dismissed
+   the banner. Pin it with explicit edges + size and drop the env() padding.
+   Also replace the menu-document's clamp() height with a fixed one. */
+.legacy .invoice-overlay {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+/* In-menu document (invoice / price list): fill the entry area and push the nav
+   entries to the bottom at their natural height - same strategy as the web
+   client. The menu surface is a flex column (portrait + landscape above), and
+   flex-basis:0 lets the iframe (a replaced element) actually grow. */
+.legacy .menu-document { height: auto; }
+.legacy .surface--menu > .menu-document { flex: 1 1 0%; min-height: 0; }
+.legacy .surface--menu > .menu-document ~ .menu-list { flex: 0 0 auto; min-height: 0; }
+
+/* ----- settings overlay (legacy-Coherent) --------------------------------
+   Same `inset`/`env()` gap as the invoice overlay: `inset:0` was ignored, so the
+   overlay collapsed and the settings page never appeared. Pin it with explicit
+   edges. PORTRAIT = full panel; LANDSCAPE = only the LEFT area (over the entries)
+   so the buttons+status column stays visible on the right. Plus the usual
+   gap->margin / grid->flex fixes for the panel internals. */
+.legacy .settings-overlay { top: 0; right: 0; bottom: 0; left: 0; padding: 0; }
+.legacy.efb-landscape .settings-overlay { right: 40%; }   /* cover the left ~60% (entries column) */
+.legacy .settings-panel { max-width: none; width: 100%; height: 100%; }
+/* Pin the chrome (title bar, top tabs, sub-tabs) to a FIXED height so they never
+   shrink/shift when the body has scrolling content - only the body scrolls. */
+.legacy .settings-head,
+.legacy .settings-tabs,
+.legacy .settings-subtabs { flex: 0 0 auto; }
+.legacy .settings-body { flex: 1 1 auto; min-height: 0; }
+/* Match the menu title bar EXACTLY - same fixed 9vmin height, padding and font
+   (clamp() is unsupported on the EFB, so size in vmin). */
+.legacy .settings-head {
+  height: 9vmin;
+  box-sizing: border-box;
+  padding: 5px 12px;
+  overflow: hidden;
+  /* Match the menu title's inset: .app padding (4px) + surface padding (4px). */
+  margin: 8px 8px 6px;
+}
+.legacy .settings-title { font-size: 3.2vmin; }
+.legacy .settings-hint { font-size: 2.1vmin; }
+
+/* tab bars: gap -> margins between children */
+.legacy .settings-tabs > * + *,
+.legacy .settings-subtabs > * + * { margin-left: 3px; }
+
+/* field row: grid -> flex (label fills, control to the right); column-gap -> margin.
+   Tighter padding (was 7px 6px) + less side padding on the fields container so
+   the larger items pack more compactly. */
+.legacy .settings-fields { padding: 3px 6px 12px; }
+.legacy .set-field { display: flex; align-items: center; padding: 3px 4px; }
+.legacy .set-range { margin: 0; }   /* drop the range input's default margin */
+.legacy .set-field > .set-label { flex: 1 1 auto; margin-right: 18px; }
+.legacy .set-field > .set-ctrl { flex: 0 0 auto; }
+/* stacked rows (range / choice / info) keep their column flex; gap -> margin */
+.legacy .set-field[data-type="range"],
+.legacy .set-field[data-type="choice"],
+.legacy .set-field[data-type="info"] { display: flex; flex-direction: column; align-items: stretch; }
+.legacy .set-field[data-type="range"] > * + *,
+.legacy .set-field[data-type="choice"] > * + *,
+.legacy .set-field[data-type="info"] > * + * { margin-top: 2px; }
+.legacy .set-field[data-type="range"] > .set-label,
+.legacy .set-field[data-type="choice"] > .set-label,
+.legacy .set-field[data-type="info"] > .set-label { margin-right: 0; }
+
+/* control clusters: gap -> margins */
+.legacy .set-ctrl > * + * { margin-left: 10px; }
+.legacy .set-range-wrap > * + * { margin-left: 12px; }
+.legacy .set-info-text > * + * { margin-top: 2px; }
+.legacy .set-info-actions > * + * { margin-left: 8px; }
+
+/* Larger text for the settings ITEMS (labels, dropdowns, text inputs, slider
+   readouts, info values, action buttons). The tab / subtab "title buttons" keep
+   their own size. */
+.legacy .set-label { font-size: 3vmin; }
+.legacy .set-select,
+.legacy .set-text { font-size: 2.8vmin; }
+/* Dropdowns: Coherent (GameFace) won't open a native <select> popup in our
+   iframe, so a choice field is a custom button + inline list (see customDropdown
+   in settings.js). The button reuses .set-select styling; draw the chevron via a
+   background SVG with room on the right. */
+.legacy .set-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23cdd3da' d='M0 0h12L6 8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  padding-right: 34px;
+}
+.legacy .set-dropdown { position: relative; width: 100%; }
+.legacy .set-dropdown .dd-btn { display: flex; align-items: center; width: 100%; text-align: left; cursor: pointer; }
+.legacy .set-dropdown .dd-label {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Open as an overlay (fixed, positioned by JS) instead of pushing the fields
+   below down. position:fixed escapes the settings-body's overflow:auto clipping. */
+.legacy .set-dropdown .dd-list {
+  position: fixed; z-index: 200; max-height: 42vmin; overflow-y: auto;
+  background: #242424; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+}
+.legacy .set-dropdown .dd-opt {
+  padding: 9px 12px; cursor: pointer; color: #e6ecf3; font-size: 2.8vmin;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.legacy .set-dropdown .dd-opt:last-child { border-bottom: 0; }
+.legacy .set-dropdown .dd-opt:hover { background: var(--set-hover); }
+.legacy .set-dropdown .dd-opt.is-sel {
+  background: linear-gradient(180deg, var(--set-blue-top) 0%, var(--set-blue-bot) 100%);
+  color: #fff;
+}
+.legacy .set-range-val { font-size: 2.6vmin; }
+.legacy .set-info-val { font-size: 2.6vmin; }
+.legacy .set-btn { font-size: 2.6vmin; }
+
+/* Bigger slider rail + draggable thumb (re-centre: margin-top = (rail - thumb)/2).
+   The empty band around a slider is the thumb's overhang past the rail, so keep
+   the rail nearly as tall as the thumb (overhang 3px) and the input height = the
+   thumb, leaving no extra space. */
+.legacy .set-range { height: 26px; }
+.legacy .set-range::-webkit-slider-runnable-track { height: 20px; border-radius: 10px; }
+.legacy .set-range::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: -3px; }
+
+/* ----- connection / startup overlay (legacy-Coherent) --------------------
+   The overlay pins itself with `inset:0` and centres with `display:grid;
+   place-items:center` - BOTH unsupported on the EFB's old Coherent, so it
+   collapsed to content size at the top-left and the startup bars never showed.
+   Pin the edges explicitly and centre with flex. */
+.legacy .overlay { top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; }
+/* clamp() is unsupported on the EFB, so re-size the overlay title / restart text /
+   spinner in vmin. The spinner especially MUST be re-declared - shell.css's
+   `border: clamp(...)` shorthand is invalid here and would drop the ring entirely. */
+.legacy .overlay-title { font-size: 4.4vmin; }
+.legacy .overlay-msg { font-size: 3.4vmin; }
+.legacy .spinner {
+  width: 12vmin; height: 12vmin;
+  border: 1.2vmin solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent);
+}
+
+/* ----- startup/restart progress (legacy-Coherent) ------------------------
+   The bars render inside the menu surface (#menuSurface) so they take the menu-
+   entries column. clamp() is unsupported -> size the title/bar text in vmin;
+   cap-free, full-column width. Taller track so the EFB reads it at panel distance. */
+.legacy .progress-title { width: 100%; max-width: none; font-size: 4vmin; margin-bottom: 2.4vmin; }
+.legacy .progress-bars { width: 100%; max-width: none; font-size: 2.7vmin; }
+.legacy .progress-track { height: 2.4vmin; }
+.legacy .progress-row + .progress-row { margin-top: 1.8vmin; }
+
+/* ----- text-input prompt modal (legacy-Coherent) -------------------------
+   clamp() unsupported -> vmin sizing; the explicit-edges/flex overlay already
+   renders. Wider card so the field is comfortable at panel distance. */
+.legacy .prompt-card { width: 86%; max-width: none; }
+.legacy .prompt-title { font-size: 3.6vmin; }
+.legacy .prompt-desc { font-size: 2.8vmin; }
+.legacy .prompt-input { font-size: 3vmin; padding: 1.4vmin 1.6vmin; }
+.legacy .prompt-btn { font-size: 2.8vmin; padding: 1.2vmin 2.4vmin; }
+
+/* Live gate-search box (legacy-Coherent): vmin sizing. */
+.legacy .menu-search-input { font-size: 2.8vmin; padding: 1.2vmin 1.6vmin; }

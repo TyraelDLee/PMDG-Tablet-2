@@ -1,4 +1,4 @@
-param([string]$PackagePath=(Join-Path $PSScriptRoot 'dist/EfbV2-LAN-0.2.11/package/pmdg-tablet-v2'), [switch]$SkipPublish, [switch]$ReusePackage, [string]$BundleName='EfbV2-LAN')
+param([string]$PackagePath=(Join-Path $PSScriptRoot 'dist/EfbV2-LAN-0.2.11/package/pmdg-tablet-v2'), [switch]$SkipPublish, [switch]$ReusePackage, [string]$BundleName='EfbV2-LAN', [switch]$AuthProbe)
 $ErrorActionPreference='Stop'
 $base=$PSScriptRoot
 if ($BundleName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]*$' -or $BundleName.EndsWith('.')) { throw 'BundleName must be a simple directory name' }
@@ -48,23 +48,14 @@ $entries | ForEach-Object {
     $text=[regex]::Replace($text,'<script\b[^>]*import-script\s*=\s*["''][^"'']*/lan-bridge/lan-bridge-(?:config|host)\.js["''][^>]*>\s*</script>\r?\n?','',[Text.RegularExpressions.RegexOptions]::IgnoreCase)
     Write-Utf8 $_.FullName ($tag+$text)
 }
-# Keep the landing presentation change reproducible when rebuilding from the source EFB.
-Get-ChildItem -LiteralPath $tablet -Recurse -Directory -Filter 'landing-analysis' | ForEach-Object {
-    foreach($name in @('core.js','host.js','ui.js')) {
-        Copy-Item -LiteralPath (Join-Path $base ('landing-analysis/'+$name)) -Destination (Join-Path $_.FullName $name) -Force
-    }
-    $ui=Join-Path $_.FullName 'ui.js'; $css=Join-Path $_.FullName 'landing-analysis.css'
-    $text=Get-Content -LiteralPath $ui -Raw -Encoding UTF8
-    $old="[['rate','Touchdown rate','ft/min'],['g','Touchdown G','G']"
-    $new="[['g','Touchdown G','G'],['rate','Touchdown rate','ft/min']"
-    if(-not $text.Contains($old) -and -not $text.Contains($new)){throw "Unrecognized landing metrics: $ui"}
-    Write-Utf8 $ui ($text.Replace($old,$new))
-    $style=Get-Content -LiteralPath $css -Raw -Encoding UTF8
-    Write-Utf8 $css ($style.Replace('#landing_analysis .la-rate','#landing_analysis .la-g'))
-}
+. (Join-Path $base 'Prepare-Shared.ps1') -TabletPath $tablet -AuthProbe:$AuthProbe
 Update-Layout $packageOut
 Copy-Item -LiteralPath (Join-Path $base 'README.md') -Destination $out -Force
-Copy-Item -LiteralPath (Join-Path $base 'TEST-REPORT.md') -Destination $out -Force
+$updatedReadme=Join-Path $base 'README.updated.md'
+if(Test-Path -LiteralPath $updatedReadme){Copy-Item -LiteralPath $updatedReadme -Destination $out -Force}
+$report=Join-Path $base 'TEST-REPORT_local.md'
+if (-not (Test-Path -LiteralPath $report)) { $report=Join-Path $base 'TEST-REPORT.md' }
+Copy-Item -LiteralPath $report -Destination (Join-Path $out 'TEST-REPORT.md') -Force
 foreach($log in @((Join-Path $out 'service\bridge.log'),(Join-Path $out 'service\logs\bridge.log'))){if(Test-Path -LiteralPath $log){Remove-Item -LiteralPath $log}}
 Compress-Archive -Path (Join-Path $out '*') -DestinationPath (Join-Path (Join-Path $base 'dist') ($BundleName+'-win-x64.zip')) -Force
 Write-Host "Built: $out"

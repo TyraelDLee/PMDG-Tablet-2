@@ -1,0 +1,146 @@
+#simbrief_dispatch{position:relative;box-sizing:border-box;width:100%;height:100%;padding:22px 26px;background:#474d52;color:#edf1f4;font:26px Inter,Arial,sans-serif;flex-direction:column;overflow:hidden}
+#simbrief_dispatch *{box-sizing:border-box}
+#simbrief_dispatch .sb-uppercase{text-transform:uppercase}
+#simbrief_dispatch .sb-now{font-size:21px;min-height:38px;padding:4px 16px;margin-left:14px;vertical-align:middle}
+#simbrief_dispatch #sb-date{cursor:pointer}
+#simbrief_dispatch .sb-alternate-status{display:block;font-size:20px;color:#c4ced5;line-height:1.35;margin-top:8px;min-height:81px}
+#simbrief_dispatch .sb-calendar-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:90;background:rgba(0,0,0,.7);display:none}
+#simbrief_dispatch .sb-calendar-dialog{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:block;width:700px;height:auto;max-width:96%;max-height:96%;overflow:auto;background:#474d52;border:1px solid #8096a5;border-radius:12px;padding:22px;box-shadow:0 12px 36px rgba(0,0,0,.4)}
+#simbrief_dispatch .sb-time-unavailable .sb-calendar-heading,#simbrief_dispatch .sb-time-unavailable .sb-calendar-week,#simbrief_dispatch .sb-time-unavailable .sb-calendar-days,#simbrief_dispatch .sb-time-unavailable .sb-calendar-time,#simbrief_dispatch .sb-time-unavailable #sb-calendar-apply{display:none}
+#simbrief_dispatch #sb-date-open{width:100%;text-align:left}
+#simbrief_dispatch .sb-calendar-heading{display:flex;align-items:center;margin-bottom:16px}
+#simbrief_dispatch .sb-calendar-heading button{margin-right:8px}
+#simbrief_dispatch #sb-calendar-month{flex:1}
+#simbrief_dispatch .sb-calendar-week,#simbrief_dispatch .sb-calendar-days{display:flex;flex-wrap:wrap}
+#simbrief_dispatch .sb-calendar-week span{width:14.2857%;text-align:center;padding:8px 0;font-size:22px;color:#c4ced5}
+#simbrief_dispatch .sb-calendar-days>*{width:14.2857%;height:62px}
+#simbrief_dispatch .sb-calendar-days button{background:transparent;border:3px solid #34393d;border-radius:8px;padding:4px}
+#simbrief_dispatch .sb-calendar-days button[aria-pressed="true"]{background:#009ed8;font-weight:600}
+#simbrief_dispatch .sb-calendar-time,#simbrief_dispatch .sb-calendar-actions{display:flex;margin-top:20px}
+#simbrief_dispatch .sb-calendar-time>div{width:50%;padding-right:12px}
+#simbrief_dispatch .sb-calendar-time button{width:100%;margin-top:8px}
+#simbrief_dispatch .sb-calendar-actions button{flex:1;margin-right:12px}
+#simbrief_dispatch #sb-calendar-apply{background:#008dbd}
+#simbrief_dispatch .sb-route-workspace{margin-top:14px;width:100%}
+#simbrief_dispatch .sb-route-title{font-size:28px;margin:12px 0}
+#simbrief_dispatch .sb-route-option{padding:16px;margin:12px 0;border:1px solid #8096a5;border-radius:8px;background:#3d444a}
+#simbrief_dispatch .sb-route-text{font-size:23px;white-space:normal;overflow-wrap:break-word;line-height:1.4}
+#simbrief_dispatch .sb-comparison-table{width:100%;border-collapse:collapse;font-size:22px;margin-top:18px}
+#simbrief_dispatch .sb-comparison-table th,#simbrief_dispatch .sb-comparison-table td{text-align:right;border-bottom:1px solid #8096a5;padding:14px 8px}
+#simbrief_dispatch .sb-comparison-table th:first-child{text-align:left}
+#simbrief_dispatch .sb-route-map-box{margin-top:18px}
+#simbrief_dispatch .sb-map-controls{display:flex;margin-bottom:10px;flex-wrap:wrap}
+#simbrief_dispatch .sb-map-controls button{margin-right:8px;margin-bottom:8px;padding:10px 18px}
+#simbrief_dispatch .sb-route-map{display:block;width:100%;height:520px;overflow:hidden;background:#182b38;border:1px solid #8096a5;border-radius:8px}
+#simbrief_dispatch .sb-map-caption{font-size:20px;color:#c4ced5;margin:8px 0 0}
+#simbrief_dispatch .sb-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:18px}
+#simbrief_dispatch h1{font-size:40px;margin:0;font-weight:600}
+#simbrief_dispatch .sb-subtitle{font-size:22px;color:#c4ced5;margin:4px 0 0}
+#simbrief_dispatch .sb-actions{display:flex;align-items:center}
+#simbrief_dispatch .sb-installed-preference{display:flex;align-items:center;font-size:22px;white-space:nowrap;margin-right:8px}
+#simbrief_dispatch .sb-actions .sb-installed-switch{position:relative;width:76px;min-width:76px;height:40px;min-height:40px;padding:0;border-radius:22px;background:#69757e;margin-left:12px}
+#simbrief_dispatch .sb-installed-switch[aria-checked="true"]{background:#009ed8}
+#simbrief_dispatch .sb-switch-thumb{position:absolute;top:5px;left:5px;width:30px;height:30px;background:#f2f6f8;border-radius:50%}
+#simbrief_dispatch .sb-installed-switch[aria-checked="true"] .sb-switch-thumb{left:41px}
+#simbrief_dispatch .sb-installed-switch:focus{outline:2px solid #f2f6f8;outline-offset:3px}
+#simbrief_dispatch .sb-button{font:inherit;color:#f2f6f8;background:#10547d;border:0;border-radius:8px;padding:14px 24px;min-height:58px;cursor:pointer;touch-action:manipulation}
+#simbrief_dispatch .sb-actions .sb-button{margin-left:14px}
+#simbrief_dispatch .sb-button:active{background:#009cd7}
+#simbrief_dispatch .sb-button:disabled{background:#51585d;color:#c3cbd0;cursor:default}
+#simbrief_dispatch .sb-tabs{display:flex;flex-shrink:0;margin-bottom:16px}
+#simbrief_dispatch .sb-tabs button{flex:1;border-radius:0;font-weight:600;font-size:30px}
+#simbrief_dispatch .sb-tabs button:first-child{border-radius:8px 0 0 8px}
+#simbrief_dispatch .sb-tabs button:last-child{border-radius:0 8px 8px 0}
+#simbrief_dispatch .sb-tabs [aria-pressed="true"]{background:#009ed8}
+#simbrief_dispatch .sb-status{padding:12px 18px;background:#34393d;border-left:5px solid #009ed8;font-size:23px;flex-shrink:0;margin-bottom:16px;white-space:normal}
+#simbrief_dispatch .sb-error{border-left-color:#edb260;color:#ffdfaf}
+#simbrief_dispatch .sb-progress{height:5px;background:#34393d;flex-shrink:0;margin-bottom:12px}
+#simbrief_dispatch .sb-progress-fill{height:100%;width:0;background:#57c49b}
+#simbrief_dispatch .sb-workspace{display:flex;flex:1;min-height:0}
+#simbrief_dispatch .sb-scroll{overflow:auto;min-height:0;overscroll-behavior:contain}
+#simbrief_dispatch .sb-form{flex:1;min-width:0;padding-right:10px}
+#simbrief_dispatch .sb-sidebar{width:29%;flex-shrink:0;margin-left:16px;background:#34393d;border-radius:10px}
+#simbrief_dispatch .sb-panel{background:#34393d;padding:16px 18px;border-radius:10px;margin-bottom:16px}
+#simbrief_dispatch .sb-bar{background:#8096a5;color:#202b32;font-size:30px;font-weight:500;margin:0 0 10px;padding:8px 16px}
+#simbrief_dispatch .sb-sidebar .sb-bar{margin:16px 16px 0}
+#simbrief_dispatch .sb-fields{display:flex;flex-wrap:wrap;margin:0 -10px}
+#simbrief_dispatch .sb-field{display:flex;flex-direction:column;width:25%;padding:8px 10px;min-width:0}
+#simbrief_dispatch .sb-wide{width:50%}
+#simbrief_dispatch .sb-full{width:100%}
+#simbrief_dispatch .sb-label{font-size:23px;font-weight:600;margin:0 0 7px;white-space:nowrap}
+#simbrief_dispatch input,#simbrief_dispatch select,#simbrief_dispatch textarea{font:26px Inter,Arial,sans-serif;color:#f0f2f4;background:#34393d;border:0;border-bottom:2px solid #9ca8b1;border-radius:0;min-width:0;width:100%;min-height:56px;padding:10px 8px;outline:none;box-shadow:none;line-height:1.25}
+#simbrief_dispatch select{background:#41494f;border-radius:4px}
+#simbrief_dispatch option{background:#34393d;color:#f0f2f4}
+#simbrief_dispatch input:focus,#simbrief_dispatch textarea:focus,#simbrief_dispatch select:focus{border-bottom-color:#00adf1}
+#simbrief_dispatch input::placeholder,#simbrief_dispatch textarea::placeholder{color:#aeb9c1;opacity:1}
+#simbrief_dispatch textarea{min-height:118px;resize:none;white-space:pre-wrap;word-break:break-word}
+#simbrief_dispatch .sb-route-action{justify-content:flex-end}
+#simbrief_dispatch .sb-summary{padding:8px 22px}
+#simbrief_dispatch .sb-summary-route{font-size:34px;font-weight:500;margin:16px 0 20px}
+#simbrief_dispatch .sb-summary-row{display:flex;flex-wrap:wrap;justify-content:space-between;border-bottom:1px solid #1681bb;padding:16px 0;font-size:23px}
+#simbrief_dispatch .sb-summary-row strong{font-weight:500;text-align:right;margin-left:14px}
+#simbrief_dispatch .sb-summary-route-text,#simbrief_dispatch .sb-warning{white-space:pre-wrap;word-break:break-word;font-size:23px;line-height:1.5}
+#simbrief_dispatch .sb-warning{color:#ffcf8e}
+#simbrief_dispatch .sb-help,#simbrief_dispatch .sb-empty{font-size:23px;line-height:1.5;color:#c0cbd2;padding:0 22px}
+#simbrief_dispatch .sb-briefing{flex:1;background:#34393d;border-radius:10px;padding:20px 26px}
+#simbrief_dispatch .sb-brief-summary{font-size:30px;color:#e0e8ed;padding-bottom:16px;border-bottom:2px solid #1681bb}
+#simbrief_dispatch .sb-ofp{font:24px/1.4 Consolas,"Courier New",monospace;color:#eef2f4;white-space:pre;margin:24px 0;user-select:text}
+#simbrief_dispatch .sb-footer{display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;margin-top:18px}
+#simbrief_dispatch .sb-footer p{font-size:21px;color:#d0d8de;flex:1;margin:0 18px 0 0}
+#simbrief_dispatch .sb-footer button{margin-left:14px}
+#simbrief_dispatch .sb-generate{background:#55ba94;color:#101e1c;font-weight:600}
+#simbrief_dispatch input[type="hidden"]{display:none}
+#simbrief_dispatch .sb-select-trigger{display:flex;align-items:center;justify-content:space-between;text-align:left;min-height:56px;padding:10px 12px;background:#41494f;border-radius:4px;border-bottom:2px solid #9ca8b1;font-size:26px;width:100%}
+#simbrief_dispatch .sb-select-trigger span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+#simbrief_dispatch .sb-select-chevron{flex-shrink:0;width:12px;height:12px;border-right:3px solid #dce8ef;border-bottom:3px solid #dce8ef;transform:rotate(45deg);margin:0 8px 6px 18px}
+#simbrief_dispatch .sb-fleet-tools{display:flex;align-items:center;justify-content:space-between;padding:2px 10px 12px}
+#simbrief_dispatch .sb-fleet-info{font-size:21px;color:#bdcbd4;margin-right:18px}
+#simbrief_dispatch .sb-fleet-tools button{font-size:22px;min-height:48px;padding:10px 18px;flex-shrink:0}
+#simbrief_dispatch .sb-picker-overlay{position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.65);z-index:100;align-items:center;justify-content:center;padding:50px}
+#simbrief_dispatch .sb-picker-dialog{display:flex;flex-direction:column;width:84%;max-height:90%;min-height:360px;background:#474d52;border:2px solid #849baa;border-radius:14px;padding:24px;box-shadow:0 16px 50px rgba(0,0,0,.5)}
+#simbrief_dispatch .sb-picker-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:18px}
+#simbrief_dispatch .sb-picker-header h2{font-size:32px;margin:0;font-weight:500}
+#simbrief_dispatch .sb-picker-search{background:#34393d;flex-shrink:0;text-align:left;margin-bottom:18px;min-height:66px}
+#simbrief_dispatch .sb-picker-list{flex:1;min-height:0;padding-right:8px}
+#simbrief_dispatch .sb-picker-option{display:block;width:100%;min-height:70px;text-align:left;white-space:normal;word-wrap:break-word;border:2px solid transparent;margin-bottom:10px;flex-shrink:0}
+#simbrief_dispatch .sb-picker-option[aria-pressed="true"]{background:#008dc8;border-color:#b5e7f6}
+#simbrief_dispatch .sb-picker-inline{background:transparent;padding:0;pointer-events:none}
+#simbrief_dispatch .sb-picker-inline .sb-picker-dialog{position:absolute;pointer-events:auto;min-height:0;border-radius:0;padding:8px;border:1px solid #999;background:#a3a6a9;box-shadow:0 8px 20px rgba(0,0,0,.3)}
+#simbrief_dispatch .sb-picker-inline .sb-picker-header{display:none}
+#simbrief_dispatch .sb-picker-inline .sb-picker-search{font-size:24px;min-height:60px;margin-bottom:8px}
+#simbrief_dispatch .sb-picker-inline .sb-picker-list{padding-right:0}
+#simbrief_dispatch .sb-picker-inline .sb-picker-option{font-size:25px;color:#101820;background:#a3a6a9;border:0;border-radius:0;padding:12px;min-height:60px;margin:0}
+#simbrief_dispatch .sb-picker-inline .sb-picker-option:hover,#simbrief_dispatch .sb-picker-inline .sb-picker-option[aria-pressed="true"]{background:#0079c2;color:white}
+#simbrief_dispatch .sb-picker-compact .sb-picker-option{min-height:44px;padding:8px 12px;font-size:24px;text-align:center}
+
+/* Dispatch tools share the same PMDG controls and stay inside the EFB viewport. */
+#simbrief_dispatch .sb-header{margin-bottom:12px}
+#simbrief_dispatch .sb-header .sb-button{font-size:23px;padding:12px 18px}
+#simbrief_dispatch .sb-tabs button{font-size:27px;min-width:0;padding:13px 12px}
+#simbrief_dispatch .sb-toolbox{flex:1;min-height:0;overflow:auto;padding-right:8px}
+#simbrief_dispatch .sb-tool-title{font-size:34px;font-weight:500;margin:6px 0 18px}
+#simbrief_dispatch .sb-tool-actions{display:flex;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
+#simbrief_dispatch .sb-tool-actions .sb-button{font-size:23px;margin:0 12px 10px 0;padding:12px 18px}
+#simbrief_dispatch .sb-toolbox .sb-help{padding:0;margin:12px 0}
+#simbrief_dispatch .sb-toolbox .sb-label{white-space:normal}
+#simbrief_dispatch .sb-tool-field{width:25%;min-width:0}
+#simbrief_dispatch .sb-tool-field.sb-wide{width:50%}
+#simbrief_dispatch .sb-tool-field.sb-full{width:100%}
+#simbrief_dispatch .sb-report{font:24px/1.5 Consolas,"Courier New",monospace;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;color:#e3eaf0;margin:16px 0}
+#simbrief_dispatch .sb-record{display:flex;align-items:center;justify-content:space-between;padding:18px 8px;border-bottom:1px solid #7a8b97}
+#simbrief_dispatch .sb-record-info{flex:1;min-width:0;margin-right:20px;word-wrap:break-word}
+#simbrief_dispatch .sb-record-info strong{font-size:28px;font-weight:500}
+#simbrief_dispatch .sb-record .sb-tool-actions{flex-shrink:0;margin:0}
+#simbrief_dispatch .sb-record .sb-help{font-size:22px}
+#simbrief_dispatch .sb-weather-chart{display:block;width:100%;height:auto;background:white;border-radius:6px}
+#simbrief_dispatch .sb-toolbox .sb-summary-row strong{max-width:70%;white-space:pre-wrap;overflow-wrap:break-word}
+#simbrief_dispatch .sb-confirm{position:absolute;z-index:110;inset:0;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:60px}
+#simbrief_dispatch .sb-confirm-card{width:70%;max-width:1100px;background:#474d52;border:2px solid #849baa;border-radius:14px;padding:32px;font-size:30px;line-height:1.5;box-shadow:0 16px 50px rgba(0,0,0,.5)}
+#simbrief_dispatch .sb-confirm-card .sb-tool-actions{justify-content:flex-end;margin-bottom:0}
+#simbrief_dispatch .sb-confirm-card .sb-button{font-size:26px}
+
+
+/* Fixed label rows keep all Flight inputs aligned, with or without actions. */
+#simbrief_dispatch .sb-flight-fields .sb-label{display:flex;align-items:center;justify-content:space-between;min-height:40px;line-height:1.2}
+#simbrief_dispatch .sb-label .sb-button{font-size:21px;min-height:38px;padding:4px 14px;margin-left:10px;flex-shrink:0}
+#simbrief_dispatch.sb-planning-busy{pointer-events:none}

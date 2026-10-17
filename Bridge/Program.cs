@@ -40,7 +40,7 @@ async Task Run() {
  async Task Send(Peer p,object obj) { try { await p.Send(JsonSerializer.Serialize(obj)); } catch { p.Socket.Abort(); } }
  async Task Notify(string side,object obj) { foreach(var p in clients.Values.Where(p=>p.Side==side))await Send(p,obj); }
  app.Use(async (c,next)=> { c.Response.Headers.XContentTypeOptions="nosniff"; c.Response.Headers.CacheControl="no-store"; await next(); });
- app.MapGet("/health",()=>Results.Json(new {service="EFB v2 LAN",version="0.2.15",hosts=hosts.Keys}));
+ app.MapGet("/health",()=>Results.Json(new {service="EFB v2 LAN",version="0.2.32",hosts=hosts.Keys}));
  app.MapGet("/session",(HttpContext c)=>Paired(c)?Results.Ok():Results.Unauthorized());
  app.MapGet("/diagnostics",(HttpContext c)=>Paired(c)?Results.Json(hosts.ToDictionary(h=>h.Key,h=>h.Value.Resources.Diagnostics())):Results.Unauthorized());
  app.MapGet("/resources/{side}/{epoch}/{id}",(HttpContext c,string side,string epoch,string id)=>{
@@ -69,7 +69,7 @@ async Task Run() {
   // Older native adapters may send /assets//Pages/... from PMDG's coui URL.
   var relative=(Convert.ToString(c.Request.RouteValues["file"])??"").TrimStart('/');
   var file=Path.GetFullPath(Path.Combine(assets,relative.Replace('/',Path.DirectorySeparatorChar)));
-  if(!file.StartsWith(assets+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) || relative.Contains("lan-bridge",StringComparison.OrdinalIgnoreCase) || !File.Exists(file)){c.Response.StatusCode=404;return;}
+  if(!file.StartsWith(assets+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) || relative.Contains("lan-bridge",StringComparison.OrdinalIgnoreCase) || relative.EndsWith("/airlabs-settings.json",StringComparison.OrdinalIgnoreCase) || !File.Exists(file)){c.Response.StatusCode=404;return;}
   if(!contentTypes.TryGetContentType(file,out var mime)){c.Response.StatusCode=404;return;}
   c.Response.ContentType=mime;
   // The native clients still talk to their original backend. Proxying keeps 127.0.0.1

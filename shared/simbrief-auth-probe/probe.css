@@ -1,0 +1,13 @@
+#simbrief_auth_probe{height:100%;width:100%;box-sizing:border-box;flex-direction:column;padding:28px 36px;overflow:auto;background:#474d52;color:#ecf0f2;font:26px Inter,Arial,sans-serif}
+#simbrief_auth_probe h1{font-size:40px;margin:0 0 12px}
+#simbrief_auth_probe p{font-size:23px;line-height:1.5;margin:12px 0;color:#d9e1e5}
+#simbrief_auth_probe section{background:#34393d;border-radius:12px;padding:8px 24px;margin:14px 0}
+#simbrief_auth_probe section>div{display:flex;padding:15px 0;border-bottom:1px solid #5d6871;gap:25px}
+#simbrief_auth_probe section>div:last-child{border:0}
+#simbrief_auth_probe strong{width:310px;flex-shrink:0;font-weight:500}
+#simbrief_auth_probe span{overflow-wrap:break-word}
+#simbrief_auth_probe nav{display:flex;flex-wrap:wrap;gap:18px;margin:12px 0}
+#simbrief_auth_probe button{font:inherit;background:#10547d;color:white;border:1px solid #7390a3;border-radius:10px;padding:16px 25px;min-height:64px;touch-action:manipulation;cursor:pointer}
+#simbrief_auth_probe button:disabled{opacity:.5}
+#simbrief_auth_probe button[aria-pressed="true"]{background:#007db3}
+#simbrief_auth_probe pre{white-space:pre-wrap;overflow-wrap:break-word;font:21px/1.5 Inter,Arial,sans-serif;background:#34393d;border-radius:12px;padding:18px;margin:10px 0;min-height:75px}

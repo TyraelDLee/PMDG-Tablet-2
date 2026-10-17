@@ -1,0 +1,87 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="beyondatc_toolbar.css"/>
+</head>
+<body class="border-box">
+<div class="panel-container">
+    <div class="panel-lift">
+        <div class="sub-panel">
+            <section id="batcFacility" class="BATC_Facility">
+                <div class="status">
+                    <h3 id="batcFacilityText" style="text-align:center">No Station Tuned</h3>
+                </div>
+            </section>
+        </div>
+        <div class="sub-panel atc-comm" id="atc-communication">
+
+        </div>
+
+        <div class="sub-panel setting" id="atc-boxes" style="flex-direction: row;">
+
+        </div>
+    </div>
+    <div class="panel-right">
+        <div class="tabs">
+            <div class="tab selected" id="action-tab" style="border-radius: 5px 0 0 0;">Actions</div>
+            <div class="tab" id="freq-tab" style="border-radius: 0 5px 0 0;">Frequencies</div>
+        </div>
+        <div class="actions-panel">
+
+            <div class="sub-panel buttons display" id="batc-actions">
+                <p id="batcActionsNoActions">No Actions</p>
+            </div>
+            <div class="sub-panel buttons hidden" id="batc-freq">
+                <p id="batcActionsNoFeq">No Frequencies</p>
+            </div>
+
+        </div>
+        <div class="sub-panel setting">
+            <div class="setting-title"><h3 style="text-align: center">Setting</h3></div>
+            <div style="padding: 0 10px">
+                <div class="sub-panel switches">
+                    <div class="button-host">
+                        <span class="tooltip">Auto Respond</span>
+                        <section class="button">
+                            <div class="checkbox">
+                                <input type="checkbox" id="setting-auto-respond">
+                                <label></label>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="button-host">
+                        <span class="tooltip">Auto Tune Radio</span>
+                        <section class="button">
+                            <div class="checkbox">
+                                <input type="checkbox" id="setting-auto-tune-radio">
+                                <label></label>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="sub-panel switches">
+                    <div class="button-host">
+                        <span class="tooltip">Filter</span>
+                        <section class="button">
+                            <div class="checkbox">
+                                <input type="checkbox" id="setting-filter">
+                                <label></label>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="info">
+                    <p id="batcInfoText" style="text-align:right; height: 21px; top: -5px; position: relative;">Waiting
+                        to connect. Please start the BeyondATC app.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+<script type="text/javascript" src="beyondatc_toolbar.js"></script>
+<script src="../remote-drag-scroll.js"></script>
+</body>
+</html>

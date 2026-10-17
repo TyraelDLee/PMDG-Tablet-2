@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>GSX Remote</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GSX Remote">
+  <meta name="theme-color" content="#11151c">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <!-- Legacy-engine compatibility: the MSFS 2024 EFB hosts this client in an
+       old Coherent/Chromium that lacks clamp()/aspect-ratio/gap/dvh/:has. Detect
+       that (no clamp == old engine), flag <html class="legacy">, and load a
+       Coherent-safe override stylesheet. Modern browsers skip it entirely. -->
+  <script>
+    (function () {
+      var modern = window.CSS && CSS.supports && CSS.supports("width", "clamp(1px,1px,1px)");
+      if (modern) { return; }
+      var de = document.documentElement;
+      de.className += " legacy";
+      var l = document.createElement("link");
+      l.rel = "stylesheet";
+      // Cache-bust: the EFB's Coherent caches sub-resources aggressively, so
+      // version the URL per index load to make CSS iteration land without a
+      // sim restart. (Harmless in production - the file is tiny.)
+      l.href = "css/efb.css?v=" + Date.now();
+      document.head.appendChild(l);
+      // Orientation: Coherent's `@media (orientation)` is unreliable here, so
+      // drive it from JS - toggle an efb-landscape/efb-portrait class on <html>
+      // from the viewport aspect, refreshed whenever the panel size changes.
+      function setOrient() {
+        var land = window.innerWidth >= window.innerHeight;
+        de.classList.remove("efb-landscape");
+        de.classList.remove("efb-portrait");
+        de.classList.add(land ? "efb-landscape" : "efb-portrait");
+      }
+      setOrient();
+      window.addEventListener("resize", setOrient);
+      window.addEventListener("orientationchange", setOrient);
+    })();
+  </script>
+</head>
+<body>
+  <main class="app">
+    <!-- Couatl startup/restart progress bars render INTO #menuSurface while the
+         engine boots (body.booting), so they occupy the menu-entries space (left
+         column in landscape, not the whole screen). Built by app.js; menu.js
+         yields the surface during boot. -->
+    <section id="menuSurface"   class="surface surface--menu"   aria-label="GSX menu"></section>
+    <section id="statusSurface" class="surface surface--status gsx-status" aria-label="GSX status"></section>
+  </main>
+
+  <!-- transient command-error toast (does not veil the UI) -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- the connecting / offline overlay (auto-clears on recovery) -->
+  <div id="overlay" class="overlay" data-state="connecting">
+    <div class="overlay-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="overlay-title">GSX Remote</div>
+      <div id="overlay-msg" class="overlay-msg">Connecting to GSX...</div>
+    </div>
+  </div>
+
+  <!-- Classic scripts in dependency order (no ES modules: a minimal static
+       server + module CORS/MIME strictness don't mix). Each attaches a global. -->
+  <script src="js/connection.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/inputField.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/status.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/prompt.js"></script>
+  <script src="js/app.js"></script>
+<script src="../remote-drag-scroll.js"></script>
+</body>
+</html>

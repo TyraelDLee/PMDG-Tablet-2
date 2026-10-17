@@ -1,0 +1,678 @@
+/* shell.css - app layout (co-equal menu+status), orientation, overlays, the menu
+ * component styling, and the generic CSS for GSX's injected status fragment. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.4 -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-user-select: none; user-select: none;
+}
+img { display: block; }
+button { font: inherit; color: inherit; border: 0; background: none; }
+
+/* ---- co-equal two-surface grid ---- */
+.app {
+  display: grid; gap: 10px;
+  height: 100vh; height: -webkit-fill-available; height: 100dvh;
+  padding:
+    calc(10px + env(safe-area-inset-top))
+    calc(10px + env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom))
+    calc(10px + env(safe-area-inset-left));
+}
+@media (orientation: landscape) {
+  .app { grid-template-columns: 3fr 2fr; grid-template-rows: 1fr; }   /* menu left (wider) | status right (narrower) */
+  /* The menu is a BOUNDED column. Make it a flex column so the entries (grid or
+     list) flex to fill the leftover after the chrome - whatever the chrome's own
+     size. JS measures that leftover (--t9-avail / --list-avail) and sizes the
+     cells/rows to it. overflow:AUTO so when the screen is too short for everything
+     (e.g. a PHONE in landscape) the surface SCROLLS instead of crushing the
+     entries to nothing. On desktop the column is tall enough that nothing
+     overflows, so no scrollbar appears (and overlay scrollbars on iOS don't steal
+     width), so this stays stable on a lateral resize. */
+  .surface--menu { display: flex; flex-direction: column; overflow: auto; min-height: 0; }
+  .surface--menu > * { flex: 0 0 auto; }
+  /* Both the grid and the list fill the leftover, but a min-height keeps flex from
+     crushing them below a usable size - past that floor the whole surface scrolls
+     (rather than shrinking the rows to a sliver). Floor = rows x min-row-height. */
+  .surface--menu > .menu-grid {
+    flex: 1 1 auto;
+    min-height: calc(var(--t9-rows, 3) * 36px + (var(--t9-rows, 3) - 1) * var(--t9-rowgap, 3px));
+  }
+  .surface--menu > .menu-list {
+    flex: 1 1 auto;
+    min-height: calc(var(--list-rows, 1) * 34px + (var(--list-rows, 1) - 1) * var(--list-gap, 4px));
+  }
+  /* The in-menu document (invoice / price list) fills the leftover column space
+     rather than sitting at a fixed height with empty space below it. flex-basis:0
+     (not auto) is needed so the iframe - a replaced element - actually grows. */
+  .surface--menu > .menu-document {
+    flex: 1 1 0%;
+    height: auto;
+    min-height: 220px;
+  }
+  /* When a document is shown the entries below it are just navigation (Back /
+     page). They have flex:1 by default and would eat all the free space, leaving
+     the document at its minimum - so when they FOLLOW a document, pin them to
+     their natural height and let the document take the rest (pushing them down). */
+  .surface--menu > .menu-document ~ .menu-list { flex: 0 0 auto; min-height: 0; }
+  .surface--menu .menu-grid {
+    --t9-rowgap: 3px; --t9-colgap: 5px;
+    --t9-cellh: calc((var(--t9-avail, 40dvh) - (var(--t9-rows, 3) - 1) * var(--t9-rowgap)) / var(--t9-rows, 3));
+    /* floor the cell so it can never become near-invisible on a short screen */
+    --t9-cellw: min(calc((100% - 2 * var(--t9-colgap)) / 3), max(58px, calc(var(--t9-cellh) * 1.6)));
+    grid-template-columns: repeat(3, var(--t9-cellw));
+    justify-content: center; align-content: start;
+  }
+  .surface--menu .menu-grid .cell { width: 100%; }
+  .surface--menu .menu-list {
+    --list-gap: 4px;
+    --list-rowh: clamp(34px,
+                       calc((var(--list-avail, 40dvh) - (var(--list-rows, 1) - 1) * var(--list-gap)) / var(--list-rows, 1)),
+                       60px);
+  }
+  .surface--menu .menu-list .opt { height: var(--list-rowh); min-height: 0; padding: 0 10px; gap: 10px; overflow: hidden; }
+  .surface--menu .menu-list .opt .opt-ico { width: auto; height: 82%; }
+  .surface--menu .menu-list .opt .opt-ico.wide { width: auto; height: 88%; max-width: 50%; }
+  .surface--menu .menu-list .opt .opt-label { font-size: clamp(14px, calc(var(--list-rowh) * 0.42), 24px); }
+}
+@media (orientation: portrait) {
+  /* Menu (top) has priority and is shown ENTIRELY; the status surface is pushed
+     below and the WHOLE PAGE scrolls to reach it (as established earlier). */
+  .app {
+    height: auto; min-height: 100vh; min-height: 100dvh;
+    grid-template-rows: auto 1fr; grid-template-columns: 1fr;
+  }
+  .app .surface--menu, .app .surface--status { overflow: visible; }
+  /* T9 fit, computed in CSS so it's consistent across browsers. JS supplies only
+     reliable px box metrics (--t9-rows, --t9-chrome); the VIEWPORT part is 100lvh,
+     which the browser computes correctly (iOS toolbar / safe areas). The cell
+     width is the SMALLER of a full column and the width a 1.6:1 cell may have for
+     all rows to fit the height left after the chrome:
+        cellWidth = min( (100% - 2*gap)/3 , 1.6 * (100lvh - chrome - gaps)/rows )
+     -> full width (edge-aligned, no margins) when there's vertical room; shrinks
+     (strict 1.6:1) and centers only when the commands would go off-screen. */
+  .surface--menu .menu-grid {
+    --t9-rowgap: 3px;   /* vertical gap; MUST match .menu-grid row-gap above */
+    --t9-colgap: 5px;   /* horizontal gap; MUST match .menu-grid column-gap above */
+    --t9-avail: calc(100lvh - var(--t9-chrome, 360px));
+    --t9-cellh: calc((var(--t9-avail) - (var(--t9-rows, 3) - 1) * var(--t9-rowgap)) / var(--t9-rows, 3));
+    --t9-cellw: min(calc((100% - 2 * var(--t9-colgap)) / 3), calc(var(--t9-cellh) * 1.6));
+    grid-template-columns: repeat(3, var(--t9-cellw));
+    justify-content: center;
+  }
+  .surface--menu .menu-grid .cell { width: 100%; }
+
+  /* Rich list: same fit strategy. Each row's height = the space left after the
+     chrome (100lvh - chrome) split across the rows, capped to a normal max and
+     floored so a very long list keeps a usable row height (and page-scrolls).
+     The icon is sized as a % of the row so it shrinks with it. */
+  .surface--menu .menu-list {
+    --list-gap: 4px;   /* match .menu-list gap */
+    --list-avail: calc(100lvh - var(--list-chrome, 360px));
+    --list-rowh: clamp(34px,
+                       calc((var(--list-avail) - (var(--list-rows, 1) - 1) * var(--list-gap)) / var(--list-rows, 1)),
+                       60px);
+  }
+  /* No vertical padding - the row height is set by the fit, so the icon and text
+     should use it. The icon is a large % of the row; the label scales with it. */
+  .surface--menu .menu-list .opt { height: var(--list-rowh); min-height: 0; padding: 0 10px; gap: 10px; overflow: hidden; }
+  .surface--menu .menu-list .opt .opt-ico { width: auto; height: 82%; }
+  .surface--menu .menu-list .opt .opt-ico.wide { width: auto; height: 88%; max-width: 50%; }
+  .surface--menu .menu-list .opt .opt-label { font-size: clamp(14px, calc(var(--list-rowh) * 0.42), 24px); }
+}
+.surface {
+  min-height: 0; min-width: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  background: var(--surface-bg); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px;
+}
+
+/* The command buttons + status share a right-hand column (built by reflowLayout
+   in menu.js). The .app grid places `.efb-right` in the 2fr column in landscape
+   (entries on the left) and as the bottom row in portrait; here it's laid out
+   internally - buttons on top, status filling/scrolling below. */
+.efb-right { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.efb-right > .efb-chrome { flex: 0 0 auto; margin-bottom: 10px; }
+.efb-right > #statusSurface { flex: 1 1 auto; min-height: 0; }
+
+/* No dimming of the app: while connecting/offline the full-screen overlay covers
+   it, and during a restart/boot the app is BLANKED (body.booting hides the right
+   column + .has-startup empties the menu surface), so there's nothing to dim. */
+
+/* ===================================================== MENU surface components */
+.menu-head {
+  /* Title bar - the same blue gradient the GSX panel header uses. */
+  background: linear-gradient(180deg, #3b72bf 0%, #254f8b 100%);
+  color: #fff; border: 1px solid rgba(160, 200, 255, 0.35); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  padding: 10px 14px; margin-bottom: 6px;
+}
+.menu-head .m-title { font-size: clamp(18px, 2.6vmin, 28px); font-weight: 700; }
+.menu-head .m-sub { color: rgba(255, 255, 255, 0.82); font-size: clamp(12px, 1.6vmin, 16px); margin-top: 2px; }
+/* When the menu is closed the title bar IS the opener: clickable, with a brighter
+   hover and an italic hint line. (Hover is un-gated so the EFB gets it too.) */
+.menu-head--action { cursor: pointer; }
+.menu-head--action:hover { background: linear-gradient(180deg, #4a83d2 0%, #2d5ca0 100%); }
+.menu-head .m-hint { font-style: italic; opacity: 0.85; }
+
+.menu-banner {
+  min-height: 46px; box-sizing: border-box; margin: 3px 0 5px;
+  background: #143b6b; border: 1px solid #1e5aa8; color: #dce9ff;
+  border-radius: var(--radius); padding: 10px 12px; white-space: pre-line;
+}
+/* No message: keep the reserved space but make it an invisible blank gap. */
+.menu-banner.empty { background: transparent; border-color: transparent; color: transparent; }
+
+/* Shared button chrome - the in-game GSX panel look (.gsx-btn / .bottom-btn):
+   neutral vertical gradient, light border, inset bevel + soft drop, light text,
+   blue hover, pressed active. Entries (.cell / .opt) and the static buttons
+   (.cmd) all share it so they read as one family, like the panel. */
+.opt, .cell, .cmd, .menu-toggle {
+  color: var(--btn-fg);
+  background: linear-gradient(180deg, var(--btn-bg-top) 0%, var(--btn-bg-bot) 100%);
+  border: 1px solid var(--btn-border);
+  box-shadow:
+    inset 0 1px 0 var(--btn-edge-hi),
+    inset 0 -1px 0 var(--btn-edge-lo),
+    0 1px 0 rgba(0, 0, 0, 0.4),
+    0 6px 14px -8px rgba(0, 0, 0, 0.6);
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 60ms ease;
+}
+.opt:active, .cell:active, .cmd:active, .menu-toggle:active {
+  background: linear-gradient(180deg, var(--btn-bg-act-top) 0%, var(--btn-bg-act-bot) 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: translateY(1px);
+}
+
+/* Receipt / invoice notification - matches the in-game banner (.gsx-receipt-banner:
+   slate-blue slot, white logo chip, two lines "Invoice from X" / "Click to view").
+   Sits at the BOTTOM of the menu surface, before the status page. */
+.receipt-banner {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  margin-top: 5px; padding: 8px 12px; border-radius: var(--radius); text-align: left; cursor: pointer;
+  background: #2a3a48; border: 1px solid #202020; color: var(--btn-fg);
+  transition: background 120ms ease;
+}
+.receipt-banner:active { filter: brightness(1.08); }
+.receipt-banner .receipt-logo {
+  height: 34px; width: auto; max-width: 40%; flex: 0 0 auto; object-fit: contain;
+  background: rgba(255, 255, 255, 0.92); border-radius: 2px; padding: 3px 6px;
+}
+.receipt-banner .receipt-text { flex: 1; min-width: 0; line-height: 1.2; }
+.receipt-banner .receipt-title { display: block; font-weight: 700; }
+.receipt-banner .receipt-op { display: block; font-size: .85em; opacity: .8; }
+@media (hover: hover) and (pointer: fine) { .receipt-banner:hover { background: #3a4a58; } }
+
+/* In-menu document (invoice / price list / past-invoices browser): a sandboxed
+   iframe above the entries, like the panel's in-menu document. */
+.menu-document {
+  width: 100%; height: clamp(220px, 42vh, 560px); margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+}
+
+.invoice-overlay {
+  position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column;
+  background: rgba(10, 10, 10, 0.92);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.invoice-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; color: #fff; font-weight: 700; }
+/* Title shrinks so the action buttons (Print Receipt + Close) stay grouped
+   on the right; long operator names ellipsize instead of wrapping. */
+.invoice-head > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invoice-close { padding: 8px 16px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); cursor: pointer; flex: 0 0 auto; }
+/* One-shot state after the print job was sent (button disables itself). */
+.invoice-print:disabled { opacity: .55; cursor: default; }
+.invoice-frame { flex: 1 1 auto; width: 100%; border: 0; border-radius: var(--radius); background: #fff; }
+
+.menu-list { display: flex; flex-direction: column; gap: 4px; }
+.opt {
+  display: flex; align-items: center; gap: 12px;
+  min-height: clamp(32px, 4.6vmin, 50px); padding: 3px 10px;
+  border-radius: var(--radius); text-align: left; width: 100%;
+}
+/* Operator-selection rows (wide logo): tighter padding + lower min-height. */
+.opt.has-logo { padding: 3px 10px; min-height: clamp(34px, 5vmin, 56px); }
+.opt .opt-ico { width: clamp(24px, 4vmin, 44px); height: clamp(24px, 4vmin, 44px); flex: 0 0 auto; object-fit: contain; }
+/* Operator logos are wide (~4:1) - height-driven, width follows the logo aspect. */
+.opt .opt-ico.wide { width: auto; height: clamp(28px, 4.8vmin, 50px); max-width: 48%; }
+.opt .opt-ico.blank { visibility: hidden; }
+.opt .opt-label { flex: 1; min-width: 0; font-weight: 600; font-size: clamp(14px, 2.2vmin, 22px); line-height: 1.1; }
+.opt.disabled { opacity: 0.42; pointer-events: none; }
+
+/* T9 keypad layout: a 3-column grid of square cells (icon over label). */
+.menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 5px; }  /* row-gap col-gap */
+.menu-grid .cell.cell-zero { grid-column: 2; }   /* the "0" key sits in the centre column of row 4 */
+.cell {
+  aspect-ratio: 1.6 / 1; padding: 3%; border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  text-align: center; min-width: 0; overflow: hidden;
+  container-type: size;   /* so the label can scale (cqmin) with the cell */
+}
+/* Icon is sized by the cell HEIGHT (the short dimension on a 1.6:1 cell); the
+   label scales with the cell via cqmin where supported, with a px fallback. */
+.cell .cell-ico { height: 64%; width: auto; max-width: 72%; object-fit: contain; flex: 0 0 auto; }
+.cell .cell-ico.blank { visibility: hidden; }
+.cell .cell-label { font-size: 13px; font-weight: 600; line-height: 1.0; overflow-wrap: anywhere; }
+.cell .cell-label { font-size: 14cqmin; }
+.cell.disabled { opacity: 0.42; pointer-events: none; }
+
+/* The single Open/Close control, between the menu entries and the static commands. */
+.menu-toggle {
+  /* Even darker than the static commands, and ALWAYS the same (open or close).
+     Chrome + blue hover + pressed active come from the shared rule above. */
+  --btn-bg-top: #2a2a2a; --btn-bg-bot: #0e0e0e; --btn-border: rgba(255, 255, 255, 0.05);
+  width: 100%; min-height: clamp(54px, 8vmin, 86px); margin: 6px 0 3px; border-radius: var(--radius);
+  font-size: clamp(16px, 2.9vmin, 30px); font-weight: 700; line-height: 1.1;
+}
+
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-dim); margin: 16px 2px 8px; }
+.cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }   /* 2 columns; Customize x2 + Settings + Restart pack into rows */
+.cmd-grid .cmd--wide { grid-column: 1 / -1; }   /* SimBrief gets its own full-width row for longer status text */
+.cmd {
+  /* STATIC commands = darker (.bottom-btn palette), subordinate to the entries.
+     Overriding the tokens locally repaints the shared chrome gradient. */
+  --btn-bg-top: #3f3f3f; --btn-bg-bot: #1f1f1f; --btn-border: rgba(255, 255, 255, 0.06);
+  min-height: clamp(52px, 7.5vmin, 84px); padding: 8px 10px; display: flex; align-items: center; gap: 10px;
+  border-radius: var(--radius); font-weight: 600; text-align: left;
+  font-size: clamp(14px, 2.7vmin, 26px); line-height: 1.1;
+}
+.cmd img { width: clamp(28px, 5.6vmin, 58px); height: clamp(28px, 5.6vmin, 58px); flex: 0 0 auto; }
+.cmd.armed { border-color: var(--warn); background: #3a2f16; }
+/* SimBrief reflects its status in the whole button (grey idle = the static
+   palette above): green = plan loaded, red = error. Overriding the tokens
+   repaints the shared chrome gradient; busy keeps grey + dimmed. */
+.cmd.sb-busy { opacity: .7; }
+.cmd.sb-loaded { --btn-bg-top: #2f9e57; --btn-bg-bot: #1c6e3b; --btn-border: #3cba6b; }
+.cmd.sb-error  { --btn-bg-top: #c4453d; --btn-bg-bot: #8f2e29; --btn-border: #d6564d; }
+.cmd .cmd-sub { display: block; font-weight: 500; font-size: clamp(11px, 1.7vmin, 17px); color: var(--ink-dim); }
+
+/* ===================================================== STATUS surface (injected)
+ * Generic, presentation-only styling of the FIXED structural classes GSX emits in
+ * its status fragment. No service ids, no value->meaning logic. */
+#statusSurface { contain: content; font: 16px/1.45 -apple-system, system-ui, sans-serif; color: var(--ink); }
+#statusSurface .status-line { padding: 4px 6px; }
+#statusSurface .status-state { font-weight: 700; font-size: 1.1em; }
+#statusSurface .status-service { display: flex; align-items: center; gap: 8px; }
+#statusSurface .status-service.has-icon::before {
+  /* Sized in em so the glyph tracks the status font and stays proportionate to
+     the multi-line service block (name + detail lines), matching the in-game
+     panel where the icon is ~3 text-lines tall rather than a tiny inline mark. */
+  content: ""; flex: 0 0 auto; width: 2.6em; height: 2.6em;
+  background: var(--status-icon-url) center/contain no-repeat;
+}
+/* Tint the icon to the service state, the way the in-game panel does: a filter
+   chain (brightness(0) flattens the SVG, then the chain recolours it) since
+   mask/currentColor is unreliable in the panel's old Chromium. Same values. */
+#statusSurface .status-service.gsx-state-performed.has-icon::before {
+  filter: brightness(0) saturate(100%) invert(64%) sepia(58%) saturate(465%) hue-rotate(45deg) brightness(89%) contrast(91%);
+}
+#statusSurface .status-service.gsx-state-waiting.has-icon::before {
+  filter: brightness(0) saturate(100%) invert(91%) sepia(26%) saturate(5410%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+#statusSurface .status-service.gsx-state-completed.has-icon::before {
+  filter: brightness(0) saturate(100%) invert(58%) sepia(58%) saturate(2552%) hue-rotate(190deg) brightness(101%) contrast(101%);
+}
+#statusSurface .status-service.gsx-state-requested.has-icon::before {
+  filter: brightness(0) saturate(100%) invert(78%) sepia(31%) saturate(1352%) hue-rotate(118deg) brightness(94%) contrast(90%);
+}
+#statusSurface .status-body { flex: 1 1 auto; min-width: 0; }
+#statusSurface .status-detail { opacity: .8; font-size: .92em; }
+#statusSurface .status-service-divider { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+/* the two GSX-emitted state cues (serviceStateClass) - colour only, no per-service mapping */
+#statusSurface .gsx-state-requested { color: #2BD9C9; }   /* cyan */
+#statusSurface .gsx-state-completed { color: #4AA3FF; }   /* blue */
+#statusSurface .gsx-state-performed { color: #8BC34A; }   /* green - matches the glyph filter target */
+#statusSurface .gsx-state-waiting   { color: #FFCC00; }   /* amber - matches the glyph filter target */
+
+/* ===================================================== overlay + toast */
+.overlay {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: var(--bg);   /* OPAQUE: a clean screen, never a translucent film that dims the app behind */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  transition: opacity .2s ease;
+}
+.overlay[data-state="live"] { opacity: 0; pointer-events: none; }
+.overlay-card { text-align: center; }
+.overlay-title { font-size: clamp(22px, 3.2vmin, 36px); font-weight: 700; margin-top: 18px; }
+.overlay-msg { color: var(--ink-dim); font-size: clamp(16px, 2.6vmin, 28px); margin-top: 10px; }
+.spinner {
+  width: clamp(56px, 9vmin, 110px); height: clamp(56px, 9vmin, 110px); margin: 0 auto;
+  border: clamp(5px, 0.9vmin, 10px) solid rgba(255,255,255,.15);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .9s linear infinite;
+}
+.overlay[data-state="gsx-offline"] .spinner { border-top-color: var(--warn); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===================================================== startup/restart progress
+   The Couatl boot progress bars (the SAME ones the in-game panel's loading screen
+   shows from the COUATL_STARTED_*_PROGRESS LVars), here driven by the Remote API's
+   `state.startup` model. They render INTO the menu surface while the engine boots
+   (body.booting) so they take the MENU-ENTRIES space (the left column in landscape,
+   the menu area in portrait) - NOT the whole screen. app.js appends a
+   `.startup-progress` panel and hides the leftover menu content via .has-startup;
+   menu.js rebuilds the real menu once boot ends. Flexbox (not grid) + explicit
+   edges (not `inset`) so the EFB's old Coherent renders them like a browser. */
+.has-startup > :not(#startupWrap) { display: none; }   /* hide leftover menu content during boot */
+/* During boot show ONLY the startup bars: BLANK the right-hand column (command
+   bar + status) too, rather than dimming a stale/not-yet-ready set of buttons. The
+   real controls appear once boot completes and the menu takes over. */
+body.booting #statusSurface,
+body.booting #efbRight { display: none; }
+.startup-progress {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;   /* fill from the top; centering clips on overflow in old Coherent */
+  overflow-y: auto;                                    /* scroll the bars ONLY when they exceed the full height */
+  padding: 10px 4px;
+}
+.overlay[data-state="booting"] { opacity: 0; pointer-events: none; }   /* the menu surface owns the UI */
+.progress-title {
+  flex: 0 0 auto; width: 100%; max-width: 620px; margin: 0 0 18px; text-align: center;
+  font-size: clamp(18px, 3vmin, 30px); font-weight: 700; color: var(--ink);
+}
+.progress-bars {
+  flex: 0 0 auto; width: 100%; max-width: 620px; text-align: left;
+  font-size: clamp(13px, 1.8vmin, 18px); line-height: 1.25;
+}
+.progress-row { display: flex; flex-wrap: wrap; align-items: center; }
+.progress-row + .progress-row { margin-top: 12px; }
+.progress-label {
+  flex: 1 1 auto; min-width: 0; margin-right: 10px;
+  color: #e8e8e8; font-weight: 600; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.progress-percent {
+  flex: 0 0 auto; min-width: 3.5em; text-align: right;
+  color: #fff; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.progress-track {
+  flex: 0 0 100%; position: relative; height: 14px; margin-top: 3px;
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+.progress-fill {
+  position: relative; height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(180deg, #4FA3F0 0%, #00B4FF 50%, #2680CF 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 0 6px rgba(0,180,255,0.4);
+  transition: width 0.6s ease-out, background 0.4s ease-out;
+}
+.progress-fill::after {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 4px;
+  background-image: linear-gradient(45deg, rgba(255,255,255,0.18) 25%, transparent 25%,
+    transparent 50%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.18) 75%, transparent 75%, transparent);
+  background-size: 16px 16px; animation: progress-stripes 1s linear infinite;
+}
+.progress-fill.done {
+  background: linear-gradient(180deg, #5fcf5f 0%, #2eaa2e 50%, #1f8f1f 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 0 8px rgba(60,200,60,0.5);
+}
+.progress-fill.done::after { animation: none; opacity: 0.4; }
+@keyframes progress-stripes { from { background-position: 0 0; } to { background-position: 16px 0; } }
+
+.toast {
+  position: fixed; z-index: 60; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 16px); max-width: 86vw;
+  background: #3a1d1d; color: #ffd7d7; border: 1px solid #6b2b2b; border-radius: var(--radius);
+  padding: 10px 14px; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+
+/* ===================================================== text-input prompt (modal)
+   The "enter a name" modal GSX raises during a menu flow (state.prompt). Unlike the
+   connection overlay this is a DELIBERATE modal, so it dims the background to focus
+   the input. Explicit edges (not `inset`) + flex centering so the EFB renders it. */
+.prompt-overlay {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); padding: 16px;
+}
+.prompt-overlay[hidden] { display: none; }
+.prompt-card {
+  width: 92%; max-width: 460px; box-sizing: border-box;
+  background: var(--surface-bg, #1b1d22); border: 1px solid var(--line, rgba(255,255,255,0.14));
+  border-radius: var(--radius, 10px); padding: 18px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.prompt-title { font-size: clamp(17px, 2.6vmin, 24px); font-weight: 700; color: var(--ink); }
+.prompt-desc { margin-top: 8px; color: var(--ink-dim); font-size: clamp(14px, 2vmin, 18px); }
+.prompt-input-wrap { margin-top: 14px; }
+.prompt-input {
+  width: 100%; box-sizing: border-box; font-size: clamp(15px, 2.2vmin, 20px);
+  padding: 10px 12px; color: var(--ink); background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line, rgba(255,255,255,0.14)); border-radius: 6px;
+}
+.prompt-input:focus { outline: none; border-color: var(--accent); }
+.prompt-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.prompt-actions > * + * { margin-left: 10px; }
+.prompt-btn {
+  cursor: pointer; font-size: clamp(14px, 2vmin, 18px); font-weight: 600;
+  padding: 9px 18px; border-radius: 6px; border: 1px solid var(--line, rgba(255,255,255,0.14));
+  color: var(--ink); background: rgba(255, 255, 255, 0.06);
+}
+.prompt-ok { background: linear-gradient(180deg, #3b72bf, #254f8b); border-color: #2a5896; color: #fff; }
+.prompt-btn:hover { filter: brightness(1.12); }
+
+/* Live gate-search box - sits at the top of the menu surface during a "Search
+   parking" session (state.search.active). Persistent across the live re-filter. */
+.menu-search { flex: 0 0 auto; padding: 2px 2px 8px; }
+.menu-search-input {
+  width: 100%; box-sizing: border-box; font-size: clamp(14px, 2vmin, 20px);
+  padding: 8px 12px; color: var(--ink); background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line, rgba(255,255,255,0.14)); border-radius: 6px;
+}
+.menu-search-input:focus { outline: none; border-color: var(--accent); }
+
+/* Service-state colour cue on menu entries (GSX-supplied class) - tint the icon
+   the same way the in-game panel does (filter chain; identical values to the
+   status-page rules above and to FSDT_GSX_Panel.css). T9 cells + list rows. */
+.cell.gsx-state-performed .cell-ico, .opt.gsx-state-performed .opt-ico {
+  filter: brightness(0) saturate(100%) invert(64%) sepia(58%) saturate(465%) hue-rotate(45deg) brightness(89%) contrast(91%);
+}
+.cell.gsx-state-waiting .cell-ico, .opt.gsx-state-waiting .opt-ico {
+  filter: brightness(0) saturate(100%) invert(91%) sepia(26%) saturate(5410%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+.cell.gsx-state-completed .cell-ico, .opt.gsx-state-completed .opt-ico {
+  filter: brightness(0) saturate(100%) invert(58%) sepia(58%) saturate(2552%) hue-rotate(190deg) brightness(101%) contrast(101%);
+}
+.cell.gsx-state-requested .cell-ico, .opt.gsx-state-requested .opt-ico {
+  filter: brightness(0) saturate(100%) invert(78%) sepia(31%) saturate(1352%) hue-rotate(118deg) brightness(94%) contrast(90%);
+}
+/* ...and the label follows the same state colour as its icon. */
+.cell.gsx-state-performed .cell-label, .opt.gsx-state-performed .opt-label { color: #8BC34A; }
+.cell.gsx-state-waiting   .cell-label, .opt.gsx-state-waiting   .opt-label { color: #FFCC00; }
+.cell.gsx-state-completed .cell-label, .opt.gsx-state-completed .opt-label { color: #4AA3FF; }
+.cell.gsx-state-requested .cell-label, .opt.gsx-state-requested .opt-label { color: #2BD9C9; }
+
+/* every interactive control stays a comfortable touch target */
+.opt, .iconbtn, .cmd, .menu-toggle, .cell { cursor: pointer; }   /* per-element min-heights (clamped >=44px) are set above */
+@media (hover: hover) and (pointer: fine) {
+  /* Blue accent hover, exactly like the in-game panel buttons. */
+  .opt:hover, .cell:hover, .cmd:hover, .menu-toggle:hover {
+    background: linear-gradient(180deg, var(--btn-bg-top-hov) 0%, var(--btn-bg-bot-hov) 100%);
+    border-color: var(--btn-border-hov);
+    color: #fff;
+  }
+}
+
+/* ===================================================== SETTINGS (generic form)
+ * Styled to mirror the in-game GSX settings page (FSDT_GSX_Panel.css .gsx-set-*):
+ * dark-grey gradient shell, uppercase bevel tabs with a blue selection, white-
+ * wash row hover, stacked range/choice/info rows, a gradient-fill slider, white
+ * thumb, and the dark->blue action buttons. Same blue family (#3B72BF/#254F8B)
+ * and slider cyan (#4FC8FF) the panel uses. Presentation-only - no per-setting
+ * rules. */
+.settings-overlay {
+  position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center;
+  background: var(--bg);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  --set-blue-top: #3b72bf; --set-blue-bot: #254f8b; --set-blue-edge: rgba(160,200,255,0.55);
+  --set-grey-top: #3f3f3f; --set-grey-bot: #1f1f1f;
+  --set-line: rgba(255,255,255,0.07);
+  --set-hover: rgba(255,255,255,0.16);
+  --set-slider-fill-start: #003d5c; --set-slider-fill-end: #4fc8ff; --set-slider-rail: #3f3f3f;
+}
+.settings-overlay[hidden] { display: none; }
+.settings-panel {
+  display: flex; flex-direction: column; width: 100%; max-width: 720px; min-height: 0;
+  color: #ddd; background: linear-gradient(180deg, #202020 0%, #141414 100%);
+}
+
+/* header - styled like a normal menu title bar (the same blue gradient .menu-head
+   uses), clickable to close; the dedicated close icon is gone, a hint says so. */
+.settings-head {
+  display: flex; flex-direction: column; justify-content: center; cursor: pointer;
+  padding: 4px 14px; margin: 6px 6px 4px;
+  background: linear-gradient(180deg, #3b72bf 0%, #254f8b 100%);
+  color: #fff; border: 1px solid rgba(160, 200, 255, 0.35); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+}
+.settings-head:hover { background: linear-gradient(180deg, #4a83d2 0%, #2d5ca0 100%); }
+.settings-title { font-size: clamp(18px, 2.6vmin, 28px); font-weight: 700; color: #fff; }
+.settings-hint { font-style: italic; opacity: 0.85; color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(12px, 1.6vmin, 16px); }
+
+/* tab bar - equal-width uppercase bevel tabs, blue selected (like .gsx-set-tabs) */
+.settings-tabs {
+  display: flex; gap: 3px; padding: 8px 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.settings-tab {
+  flex: 1 1 auto; min-width: 0; padding: 9px 10px; border-radius: 4px;
+  background: linear-gradient(180deg, #6f6f6f 0%, #474747 100%);
+  border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+  color: #cdd3da; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; cursor: pointer;
+}
+.settings-tab.is-active {
+  background: linear-gradient(180deg, var(--set-blue-top) 0%, var(--set-blue-bot) 100%);
+  border-color: var(--set-blue-edge); color: #fff;
+}
+/* subtabs - smaller, on a darker recessed band */
+.settings-subtabs {
+  display: flex; gap: 3px; padding: 6px 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  background: rgba(0,0,0,0.22); border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.settings-subtab {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 4px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
+  color: #aab2bb; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+  white-space: nowrap; cursor: pointer;
+}
+.settings-subtab.is-active {
+  background: linear-gradient(180deg, var(--set-blue-top) 0%, var(--set-blue-bot) 100%);
+  border-color: var(--set-blue-edge); color: #fff;
+}
+
+.settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.settings-fields { display: flex; flex-direction: column; padding: 4px 16px 18px; }
+.settings-placeholder { padding: 40px 20px; text-align: center; color: rgba(255,255,255,0.5); font-style: italic; }
+
+/* field row - grid label/control by default, white-wash hover (like .gsx-set-field) */
+.set-field {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 18px;
+  padding: 7px 6px; margin: 0 -6px; border-bottom: 1px solid var(--set-line);
+}
+.set-field:hover { background: var(--set-hover); }
+.set-label { font-size: 17px; font-weight: 600; color: #e6ecf3; min-width: 0; }
+.set-ctrl { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+
+/* stacked rows - range / choice / info give the control its own full-width line
+   (matches the panel's stacked sliders + audio-device dropdowns + info paths) */
+.set-field[data-type="range"], .set-field[data-type="choice"], .set-field[data-type="info"] {
+  display: flex; flex-direction: column; align-items: stretch; gap: 5px;
+}
+.set-field[data-type="range"] .set-ctrl,
+.set-field[data-type="choice"] .set-ctrl { justify-content: stretch; }
+
+/* separator - 3px white bar spanning the gutter; labels hidden, like the panel */
+.set-sep { height: 3px; background: rgba(255,255,255,0.18); margin: 18px -6px 8px; }
+.set-sep span { display: none; }
+
+/* info row */
+.set-info-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-info-val { font-size: 15px; color: #b8c2cc; overflow-wrap: anywhere; }
+.set-info-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+/* toggle pill - grey off / blue gradient on, white knob (like the panel toggle) */
+.set-switch {
+  position: relative; width: 52px; height: 28px; border-radius: 999px; flex: 0 0 auto; padding: 0;
+  background: var(--set-grey-top); border: 1px solid rgba(255,255,255,0.10); cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.set-switch[aria-checked="true"] {
+  background: linear-gradient(180deg, var(--set-blue-top) 0%, var(--set-blue-bot) 100%);
+  border-color: var(--set-blue-edge);
+}
+.set-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.4); transition: transform .15s ease;
+}
+.set-switch[aria-checked="true"] .set-switch-knob { transform: translateX(24px); }
+.set-switch:disabled { opacity: .45; cursor: default; }
+
+/* select / text */
+.set-select, .set-text {
+  padding: 9px 11px; border-radius: 4px;
+  background: #2a2a2a; border: 1px solid rgba(255,255,255,0.12); color: #e6ecf3; font-size: 16px;
+}
+.set-select { width: 100%; }
+.set-text { width: 220px; max-width: 56vw; }
+
+/* range slider - dark->cyan gradient fill up to the thumb, grey rail, white thumb */
+.set-range-wrap { display: flex; align-items: center; gap: 12px; width: 100%; }
+.set-range {
+  --fill: 0%; flex: 1 1 auto; min-width: 0; height: 22px; cursor: pointer;
+  appearance: none; -webkit-appearance: none; background: transparent;
+}
+.set-range::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background:
+    linear-gradient(to right, transparent 0%, transparent var(--fill),
+                    var(--set-slider-rail) var(--fill), var(--set-slider-rail) 100%),
+    linear-gradient(to right, var(--set-slider-fill-start) 0%, var(--set-slider-fill-end) 100%);
+}
+.set-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; margin-top: -7px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.set-range:hover::-webkit-slider-thumb { background: #eaf2fa; }
+/* Firefox / Gecko fall back to its native progress fill */
+.set-range::-moz-range-track { height: 6px; border-radius: 3px; background: var(--set-slider-rail); }
+.set-range::-moz-range-progress { height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--set-slider-fill-start), var(--set-slider-fill-end)); }
+.set-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 0; }
+.set-range-val { min-width: 56px; text-align: right; color: #b8c2cc;
+  font-variant-numeric: tabular-nums; font-size: 15px; }
+
+/* action / info button - dark grey idle -> blue gradient hover (like .gsx-set-action-btn) */
+.set-btn {
+  appearance: none; -webkit-appearance: none;
+  padding: 9px 22px; border-radius: 4px; white-space: nowrap; cursor: pointer;
+  background: linear-gradient(180deg, var(--set-grey-top) 0%, var(--set-grey-bot) 100%);
+  border: 1px solid rgba(255,255,255,0.10); color: #e6ecf3; font-size: 15px; font-weight: 600; letter-spacing: .02em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(0,0,0,0.4);
+}
+.set-btn:hover { color: #fff; border-color: var(--set-blue-edge);
+  background: linear-gradient(180deg, var(--set-blue-top) 0%, var(--set-blue-bot) 100%); }
+.set-btn:active { background: linear-gradient(180deg, #2c2c2c 0%, #404040 100%); }
+.set-btn[data-disabled="1"], .set-btn:disabled { opacity: .4; pointer-events: none; background: #2a2a2a; }
+.set-field--action[title] { cursor: default; }
+
+/* Match PMDG GroundOps colors without changing GSX layout or state colors. */
+@font-face {
+  font-family: 'PMDG Inter';
+  src: url('../../Assets/Fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'PMDG Inter';
+  src: url('../../Assets/Fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+:root { --bg: #323639; --surface-bg: #323639; }
+html body, html.legacy body {
+  background-color: #323639;
+  font-family: 'PMDG Inter', 'Segoe UI', Arial, sans-serif;
+}

@@ -66,6 +66,23 @@
   function state(text, enabled) { status.textContent = text; online = enabled; offline.hidden = enabled; mountControls(enabled); }
   function send(m) { if (socket && socket.readyState === 1) socket.send(JSON.stringify(m)); }
   function safeUrl(v) { return /^(\/assets\/|\/resources\/|https?:\/\/|data:image\/|#)/i.test(v) ? v : ''; }
+  const valueTimers = new WeakMap();
+  function syncValue(n, r, sourceEpoch) {
+    clearTimeout(valueTimers.get(n)); valueTimers.delete(n);
+    if (sourceEpoch !== epoch || nodes.get(r.id) !== n || !('value' in r)) return;
+    const remaining = 1201 - (Date.now() - (inputGuard.get(n) || 0));
+    if (remaining > 0) {
+      // Do not discard a server-side conversion while protecting active typing.
+      // Reconcile the newest record once the existing input guard expires.
+      if (n.value !== r.value || n.checked !== r.checked) valueTimers.set(n, setTimeout(() => {
+        const latest = records.get(r.id);
+        if (latest) syncValue(n, latest, sourceEpoch);
+      }, remaining));
+      return;
+    }
+    if (n.value !== r.value) n.value = r.value;
+    if ('checked' in r) n.checked = r.checked;
+  }
   function update(r) {
     let n = nodes.get(r.id);
     if (!n) { n = r.tag ? doc.createElementNS(r.ns || 'http://www.w3.org/1999/xhtml', r.tag) : doc.createTextNode(''); nodes.set(r.id, n); n.__efbId = r.id; }
@@ -77,7 +94,7 @@
       if (n.getAttribute(k) !== value) n.setAttribute(k, value);
     }
     if (r.tag === 'iframe') { n.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms'); if (r.frameUnavailable) n.title = '此嵌入页面需要单独适配，请使用模拟器内 EFB'; }
-    if ('value' in r && Date.now() - (inputGuard.get(n) || 0) > 1200) { if (n.value !== r.value) n.value = r.value; n.checked = r.checked; }
+    if ('value' in r) syncValue(n, r, epoch);
     if (r.canvas) draw(n, r.canvas);
   }
   async function draw(n, data) {

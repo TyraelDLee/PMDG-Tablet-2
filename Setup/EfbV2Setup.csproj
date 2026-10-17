@@ -3,6 +3,6 @@
     <OutputType>WinExe</OutputType><TargetFramework>net9.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
     <AssemblyName>EfbV2Setup</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.2.15</Version><Description>PMDG EFB v2 installer and LAN manager</Description>
+    <Version>0.2.32</Version><Description>PMDG EFB v2 installer and LAN manager</Description>
   </PropertyGroup>
 </Project>

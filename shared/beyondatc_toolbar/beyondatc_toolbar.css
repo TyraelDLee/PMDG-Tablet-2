@@ -1,0 +1,826 @@
+:root{
+  --border-color: var(--white);
+
+  --message-color: var(--dark-blue);
+  --message-text-color: var(--grey1);
+  --font-color: var(--black);
+
+  --tab-text-color: var(--black);
+  --tab-background: var(--white);
+  --tab-selec-text-color: var(--white);
+  --tab-selec-background: var(--blue);
+
+  --window-background-color: var(--grey);
+  --background-color: var(--dark-grey);
+
+  --button-background-color:var(--blue);
+  --button-text-color: var(--white);
+
+  --checkbox-color: var(--light-grey);
+
+  --black: #000000;
+  --white: #ffffff;
+  --grey: #dddddd;
+  --grey1: #f0f0f0;
+  --blue: #3399ff;
+  --blue2: #016bbc;
+  --light-grey: #cccccc;
+  --dark-grey: #555555;
+  --dark-blue: #5a7ab4;
+  --dark-blue3: #082963;
+
+  --dark-blue1: #010b1a;
+  --dark-blue2: #0c2347;
+}
+
+html[theme="dark"]{
+  --border-color: var(--dark-blue2);
+
+  --message-color: var(--dark-blue3);
+  --message-text-color: var(--light-grey);
+  --font-color: var(--light-grey);
+
+  --tab-text-color: var(--light-grey);
+  --tab-background: var(--dark-blue2);
+  --tab-selec-text-color: var(--light-grey);
+  --tab-selec-background: var(--blue2);
+
+  --window-background-color: var(--dark-blue1);
+  --background-color: var(--dark-blue1);
+
+  --button-background-color:var(--blue2);
+  --button-text-color: var(--light-grey);
+
+  --checkbox-color: var(--light-grey);
+}
+
+body{
+  margin: 0;
+  background: var(--background-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+  Roboto, "Helvetica Neue", Arial, sans-serif;
+  user-select: none;
+}
+
+.border-box{
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel-container{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+
+}
+
+.panel-lift, .panel-right{
+  display: flex;
+  flex-direction: column;
+  margin: 10px;
+
+}
+
+.panel-lift{
+  flex: 1;
+  border-radius: 7px;
+  max-width: 70%;
+  min-width: 70%;
+  /*border: 5px solid var(--border-color);*/
+}
+
+.panel-right{
+  flex: 0.5;
+  justify-content: space-between;
+}
+
+.BATC_Facility{
+  height: 64px;
+  border-radius: 7px 7px 0 0;
+}
+
+.atc-comm{
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  height: calc(100vh - 288px);
+  scrollbar-width: none;
+  padding-top: 15px;
+  user-select: text;
+  border: 5px solid var(--border-color);
+  border-radius: 0 0 7px 7px;
+}
+
+#batc-actions, #batc-freq{
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  height: calc(100vh - 52px - 20px - 235px);
+}
+
+
+.atc-comm .message{
+  line-height: 24px;
+  font-size: 24px;
+  padding: 10px 15px;
+}
+
+.atc-comm .message.player{
+  text-align: left;
+}
+
+.atc-comm .message.non-player{
+  text-align: right;
+}
+
+.buttons{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+button{
+  border: none;
+  background: var(--button-background-color);
+  color: var(--button-text-color);
+  cursor: pointer;
+  height: 40px;
+  line-height: 40px;
+  width: 90%;
+  user-select: none;
+  margin: 10px 0;
+}
+
+button:active{
+  opacity: 0.8;
+}
+
+.sub-panel.switches{
+  display: flex;
+  margin: 0.5em;
+  justify-content: space-between;
+}
+.bottom-item {
+  cursor: pointer;
+  position: relative;
+  float: left;
+  margin: 0 5px;
+}
+
+.button-host {
+  position: relative;
+  display: flex;
+  margin: 0 10px;
+  justify-content: space-evenly;
+}
+
+.button-host span {
+  font-size: 14px;
+  left: 0;
+  top: 12px;
+}
+
+.button-host section {
+  margin-left: 1.5em;
+}
+
+
+.checkbox {
+  position: relative;
+  display: inline-block;
+}
+.checkbox:after, .checkbox:before {
+  font-family: FontAwesome;
+  -webkit-font-feature-settings: normal;
+  font-feature-settings: normal;
+  -webkit-font-kerning: auto;
+  font-kerning: auto;
+  -webkit-font-language-override: normal;
+  font-language-override: normal;
+  font-stretch: normal;
+  font-style: normal;
+  font-synthesis: weight style;
+  font-variant: normal;
+  font-weight: normal;
+  text-rendering: auto;
+}
+.checkbox label {
+  width: 35px;
+  height: 13px;
+  background: var(--checkbox-color);
+  position: relative;
+  display: inline-block;
+  border-radius: 19px;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+.checkbox label:after {
+  content: '';
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  border-radius: 100%;
+  left: 0;
+  top: -2px;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+.checkbox input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkbox input:hover + label:after {
+  box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.2), 0 3px 8px 0 rgba(0, 0, 0, 0.15);
+}
+
+.checkbox input:checked + label:after {
+  left: 18px;
+}
+
+.btn-disabled{
+  -webkit-filter: opacity(50%);filter: opacity(50%);
+}
+
+.checkbox input:hover + .btn-disabled:after {
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2)!important;
+}
+
+.button .checkbox input:checked + label {
+  background: var(--button-background-color);
+}
+
+.button .checkbox input:checked + label:after {
+  background: var(--button-background-color);
+}
+
+.sub-panel.input{
+  display: flex;
+}
+
+input[type='text']{
+  border-bottom: 1px solid var(--button-background-color);
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  width: 100%;
+  transition: .2s;
+  background: var(--window-background-color);
+  line-height: 36px;
+  margin-top: -3px;
+  margin-bottom: 2px;
+  min-width: calc(100% - 90px);
+}
+
+input[type='text']:focus-visible {
+  border-bottom: 3px solid var(--button-background-color);
+  margin-bottom: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  outline: none;
+}
+
+.invalid{
+  border-color: #ff0000!important;
+}
+
+.panel-right .tabs{
+  display: flex;
+  height: 52px;
+}
+
+.actions-panel, .atc-comm, .setting{
+  background-color: var(--window-background-color);
+}
+
+.actions-panel{
+  border-radius: 0 0 7px 7px;
+  border-bottom: 5px solid var(--border-color);
+  border-left: 5px solid var(--border-color);
+  border-right: 5px solid var(--border-color);
+}
+
+.actions-panel .tabs{
+  display: flex;
+  justify-content: space-between;
+}
+
+
+.ActionClickable new-push-button {
+  font-weight: 600;
+}
+
+.BATC_Facility .status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.ATC_message {
+  display: flex;
+  align-items: center;
+  background: var(--message-color);
+  margin: 10px 0;
+  padding: 10px 0;
+  border-radius: 5px;
+}
+
+.ATC_message .message {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  font-weight: 500;
+  color: var(--message-text-color);
+}
+
+.ATC_player{
+  margin-right: 55px;
+  margin-left: 15px;
+  position: relative;
+}
+
+.ATC_player::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  bottom: 0px;
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-right: 12px solid var(--message-color);
+}
+
+.ATC_atc {
+  background: var(--message-color);
+  margin-left: 55px;
+  margin-right: 15px;
+  position: relative;
+}
+
+.ATC_atc::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  bottom: 0px;
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-left: 12px solid var(--message-color);
+}
+
+.ATC_atc .message {
+  justify-content: flex-end;
+}
+
+.ATC_message .icon {
+  display: inline-block;
+}
+
+
+.frequency-container {
+  display: flex;
+  flex-wrap: wrap;
+
+}
+
+.frequency-item {
+  margin: 0 20px;
+  cursor: pointer;
+}
+
+.frequency-item:hover {
+  text-decoration: underline;
+}
+
+.sub-panel.display{
+  display: flex;
+}
+
+.sub-panel.hidden{
+  display: none;
+}
+
+.tab{
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+  font-size: 24px;
+  border-radius: 5px 5px 0 0;
+  background: var(--tab-background);
+  color: var(--tab-text-color);
+  padding: 10px 0;
+}
+
+.tab.selected{
+  background: var(--tab-selec-background);
+  color: var(--tab-selec-text-color);
+}
+
+.setting{
+
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 5px solid var(--border-color);
+  border-radius: 7px;
+  margin-top: 20px
+}
+
+.setting .setting-title{
+  background-color: var(--border-color);
+
+}
+
+.setting-title h3{
+  margin: 7px 0 13px 0;
+}
+
+.setting .info{
+  height: 21px;
+}
+
+#batcFacility{
+  background: var(--border-color);
+}
+
+#batc-actions button:first-child{
+  margin-top: 30px;
+}
+
+#batcActionsNoFeq, #batcActionsNoActions{
+  margin-top: 30px;
+}
+
+.toggle-buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.toggle-button-container {
+  flex: 1;
+}
+
+.message-boxes:first-child {
+  margin-left: 30px;
+}
+.message-boxes:last-child{
+  margin-right: 30px;
+}
+.message-boxes{
+  display: flex;
+  flex-direction: column;
+  justify-items: center;
+  justify-content: center;
+  align-items: center;
+  background: #905dbc;
+  height: 100px;
+  min-width: 200px;
+  margin: 0 10px;
+  border-radius: 10px;
+}
+
+.message-boxes.c1{
+  background: #5d86bc;
+}
+
+.message-box-info, .message-box-title{
+  color: #fff;
+
+}
+
+.message-box-title{
+  font-weight: 250;
+  font-size: 20px;
+  top: -8px;
+  position: relative;
+}
+.message-box-info{
+  font-weight: 750;
+  font-size: 28px;
+}
+
+#atc-boxes{
+  overflow-x: scroll;
+  scrollbar-width: none;
+  align-items: center;
+  height: 150px;
+  justify-content: flex-start;
+}
+
+h1, h3, .button-host span, .info p, #setting-host, #batcActionsNoActions, .frequency-container span{
+  color: var(--font-color);
+}
+
+@keyframes grow-shrink-circle-motion {
+  0% {
+    transform: scale(2) rotate(0deg);
+  }
+
+  25% {
+    transform: scale(1.5) rotate(90deg);
+  }
+
+  50% {
+    transform: scale(0.5) rotate(180deg);
+  }
+
+  75% {
+    transform: scale(1.5) rotate(270deg);
+  }
+
+  100% {
+    transform: scale(2) rotate(360deg);
+  }
+}
+/* EFB viewport: bounded flex columns with real, non-shrinking scroll content. */
+html, body { width:100%; height:100%; overflow:hidden; }
+.panel-container { height:100%; min-height:0; overflow:hidden; }
+.panel-lift, .panel-right { height:calc(100% - 20px); min-height:0; min-width:0; }
+.panel-lift { min-width:0; max-width:none; flex:7; }
+.panel-right { flex:3; overflow-y:auto; }
+.panel-lift > .sub-panel { flex-shrink:0; }
+.panel-lift > .atc-comm { flex:1 1 0px; height:auto; min-height:0; overflow-y:auto; box-sizing:border-box; user-select:none; }
+.atc-comm > * { flex-shrink:0; }
+.panel-right > .tabs, .panel-right > .setting { flex-shrink:0; }
+.actions-panel { flex:1 1 0px; min-height:90px; overflow:hidden; }
+#batc-actions, #batc-freq { height:100%; min-height:0; box-sizing:border-box; overflow-y:auto; }
+#batc-actions > *, #batc-freq > * { flex-shrink:0; }
+
+/* PMDG visual integration: retain existing column structure and scrolling. */
+@font-face {
+  font-family: 'PMDG Inter';
+  src: url('../Assets/Fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'PMDG Inter';
+  src: url('../Assets/Fonts/Inter-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+}
+:root, html[theme="dark"] {
+  --background-color: #323639;
+  --window-background-color: #323639;
+  --border-color: #474d52;
+  --message-color: #474d52;
+  --message-text-color: #ededed;
+  --font-color: #ededed;
+  --tab-background: #474d52;
+  --tab-text-color: #ededed;
+  --tab-selec-background: #0079c2;
+  --tab-selec-text-color: #ffffff;
+  --button-background-color: #0079c2;
+  --button-text-color: #ffffff;
+}
+/* Scope fonts away from the bottom instruction cards. */
+#batcFacility, #atc-communication, .panel-right {
+  font-family: 'PMDG Inter', 'Segoe UI', Arial, sans-serif;
+}
+#batcFacilityText { font-size: 26px; font-weight: 600; }
+#atc-communication .message { font-size: 30px; line-height: 1.35; font-weight: 400; }
+.panel-right button {
+  font-family: 'PMDG Inter', 'Segoe UI', Arial, sans-serif;
+  font-size: 22px;
+  line-height: 1.25;
+  height: auto;
+  min-height: 54px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  white-space: normal;
+}
+.panel-right .tab { font-size: 26px; }
+#batc-freq { font-size: 22px; }
+#batc-freq h1 { font-size: 26px; }
+#batc-freq h3 { font-size: 24px; }
+.panel-right > .setting { height: 165px; }
+.panel-right .setting-title h3 { font-size: 22px; font-weight: 600; margin: 7px 0; }
+.panel-right .button-host span { font-size: 18px; white-space: nowrap; }
+.panel-right .button-host { margin: 0 5px; }
+.panel-right .button-host section { margin-left: 12px; }
+.panel-right .info p { font-size: 16px; }
+/* Keep the instruction strip's original surrounding colors too. */
+#atc-boxes { background-color: #010b1a; border-color: #0c2347; }
+
+/* PMDG performance-app presentation. CSS only: all existing IDs, injected
+   nodes, click handlers, visibility classes and socket code remain intact. */
+:root, html[theme="dark"] {
+  --background-color: #474d52;
+  --window-background-color: #2f3337;
+  --border-color: #708090;
+  --message-color: #353b40;
+  --message-text-color: #ededed;
+  --font-color: #ededed;
+  --tab-background: #155782;
+  --tab-text-color: #ededed;
+  --tab-selec-background: #159ed4;
+  --tab-selec-text-color: #ffffff;
+  --button-background-color: #155782;
+  --button-text-color: #ffffff;
+}
+.panel-container {
+  padding: 14px;
+  box-sizing: border-box;
+  background: #474d52;
+}
+.panel-lift, .panel-right {
+  height: 100%;
+  margin: 0;
+  min-height: 0;
+  min-width: 0;
+}
+.panel-lift { flex: 2; margin-right: 16px; }
+.panel-right { flex: 1; }
+#batcFacility {
+  height: 62px;
+  background: #155782;
+  border-radius: 8px 8px 0 0;
+}
+#batcFacility .status { height: 100%; padding: 0 16px; box-sizing: border-box; }
+#batcFacilityText {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #fff;
+}
+.panel-right > .tabs { height: 62px; flex: 0 0 62px; }
+.panel-right .tab {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 26px;
+  font-weight: 600;
+}
+#atc-communication {
+  background: #2f3337;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+.ATC_message {
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #596168;
+}
+.ATC_player {
+  margin-left: 0;
+  margin-right: 24px;
+  background: #34434e;
+  border-left: 4px solid #159ed4;
+}
+.ATC_atc {
+  margin-left: 24px;
+  margin-right: 0;
+  background: #353b40;
+  border-right: 4px solid #708090;
+}
+.ATC_player::after, .ATC_atc::after { display: none; }
+#atc-communication .message {
+  min-width: 0;
+  font-size: 28px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  overflow-wrap: break-word;
+}
+.ATC_message > svg { flex-shrink: 0; opacity: .8; }
+.actions-panel {
+  padding: 14px;
+  background: #2f3337;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  box-sizing: border-box;
+}
+#batc-actions, #batc-freq { padding: 0 4px 10px; }
+.panel-right #batc-actions button {
+  width: 100%;
+  min-height: 58px;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 2px solid #0079c2;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+#batc-actions button:hover { background: #0079c2; }
+#batc-actions button:active { background: #159ed4; }
+#batc-freq h1, #batc-freq h3 {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0 8px;
+  padding: 7px 12px;
+  background: #708090;
+  color: #20272b;
+  font-weight: 600;
+}
+#batc-freq h1 { font-size: 26px; }
+#batc-freq h3 { font-size: 23px; }
+.frequency-container { width: 100%; }
+.frequency-item {
+  display: inline-block;
+  margin: 0 12px 8px;
+  padding: 10px 6px;
+  border-bottom: 2px solid #0079c2;
+  font-size: 25px;
+  color: #ededed;
+}
+.frequency-item:hover { color: #fff; background: #155782; text-decoration: none; }
+.panel-right > .setting {
+  height: auto;
+  flex: 0 0 auto;
+  margin-top: 16px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #2f3337;
+  box-sizing: border-box;
+}
+.panel-right .setting-title { background: #708090; }
+.panel-right .setting-title h3 {
+  color: #20272b;
+  font-size: 26px;
+  text-align: left !important;
+  margin: 0;
+  padding: 7px 12px;
+}
+.panel-right .sub-panel.switches {
+  margin: 0;
+  flex-direction: column;
+}
+.panel-right .button-host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  margin: 0;
+  border-bottom: 1px solid #0079c2;
+}
+.panel-right .button-host span { position: static; font-size: 20px; }
+.panel-right .button-host section { margin: 0 0 0 12px; }
+.panel-right .checkbox label { width: 42px; height: 18px; }
+.panel-right .checkbox label:after { width: 22px; height: 22px; }
+.panel-right .checkbox input:checked + label:after { left: 20px; }
+.panel-right .setting .info { height: auto; min-height: 24px; padding-top: 8px; }
+.panel-right #batcInfoText {
+  position: static !important;
+  height: auto !important;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.3;
+  color: #c8cacb;
+}
+#atc-boxes {
+  height: 150px;
+  min-height: 150px;
+  margin-top: 16px;
+  padding: 14px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 10px;
+  background: #2f3337;
+  font-family: 'PMDG Inter', 'Segoe UI', Arial, sans-serif;
+}
+#atc-boxes .message-boxes {
+  flex: 0 0 auto;
+  height: 110px;
+  min-width: 178px;
+  padding: 0 14px;
+  margin: 0 12px 0 0;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+#atc-boxes .message-boxes:nth-child(odd) { background: #5d86bc; }
+#atc-boxes .message-boxes:nth-child(even) { background: #905dbc; }
+#atc-boxes .message-box-title { top: 0; font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+#atc-boxes .message-box-info { font-size: 28px; font-weight: 600; }
+/* Scroll owners remain unchanged so the existing drag helper still applies. */
+@media (max-height: 700px) {
+  .panel-right .button-host { min-height: 32px; }
+  #atc-boxes { height: 124px; min-height: 124px; }
+  #atc-boxes .message-boxes { height: 94px; }
+}
