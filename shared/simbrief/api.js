@@ -71,7 +71,7 @@
  // Requests run in the simulator. Settings are installed locally and are never
  // added to the DOM or the LAN event stream. Only sanitized routes are cached.
  function AirlabsClient(){
-  var settings=null,inventory=null,pending={},cache={},store='PMDG_EFB_AIRLABS_ROUTES_V1';
+  var settings=null,pending={},cache={},store='PMDG_EFB_AIRLABS_ROUTES_V1';
   try{var saved=root.GetStoredData&&root.GetStoredData(store);if(saved){var value=JSON.parse(saved);if(value&&typeof value==='object'&&!Array.isArray(value))cache=value;}}catch(_){}
   function read(url,secret){return new Promise(function(resolve,reject){
    var x=new root.XMLHttpRequest();x.open('GET',url,true);x.timeout=20000;
@@ -144,7 +144,9 @@
    if(!numbers.length)return random('no-route');if(numbers.length>1&&previous)numbers=numbers.filter(function(n){return n!==previous;});
    return {number:numbers[Math.floor(Math.random()*numbers.length)],source:'airlabs'};
   };
-  this.installedAirports=function(){if(!inventory)inventory=read('/Pages/VCockpit/Instruments/PMDGTablet/shared/simbrief/installed-airports.json').catch(function(e){inventory=null;throw e;});return inventory;};
+  // One small local read per preferred Pick, never a background poll. The
+  // installer can change the enabled projection while this app stays open.
+  this.installedAirports=function(){return read('/Pages/VCockpit/Instruments/PMDGTablet/shared/simbrief/installed-airports.json?revision='+Date.now());};
  }
  root.PMDGAirlabsClient=AirlabsClient;
 

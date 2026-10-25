@@ -11,6 +11,11 @@
   var epoch = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
   var ids = new WeakMap(), live = new Map(), previous = new Map(), serial = 0, sequence = 0;
   var canvasState = new WeakMap(), canvasInstrumented = false;
+  var viewNodes=new Set(),viewAcks=[];
+  function viewState(node){
+    if(node.id!=='efb_navigraph_chart_container_scroll'&&!(node.classList&&node.classList.contains('leaflet-container')))return null;
+    try{return window.PMDGLanViewAdapter&&window.PMDGLanViewAdapter.read(node);}catch(_){return null;}
+  }
   var resources = new Map(), resourceSerial = 0, loadingResources = 0, resourceBytes = 0;
   var dirtyNodes = new Set(), detachedRoots = new Set(), currentRecords = new Map(), propertyNodes = new Set();
   var cssDirty = true, styleCache = '', linksCache = [], styleKeyCache = '', geometryDirty = true, geometryCache, aircraftCache = '', lastPoll = 0, rootKey;
@@ -111,7 +116,10 @@
     }
   }
   function id(node) { if (!ids.has(node)) ids.set(node, ++serial); return ids.get(node); }
-  function state(canvas) { var s = canvasState.get(canvas); if (!s) { s = { commands: [], depth: 0, unsupported: false }; canvasState.set(canvas, s); } return s; }
+  var canvasStyleSerial=0;
+  function state(canvas) { var s = canvasState.get(canvas); if (!s) { s = { commands: [], depth: 0, unsupported: false, assigned:{}, styleVersion:0, stack:[], clearVersion:-1, clearState:[], queued:false }; canvasState.set(canvas, s); } return s; }
+  function markCanvas(canvas,s) { if(subscribed&&!s.queued){s.queued=true;mark(canvas);} }
+  window.__efbLanCanvasInfo=function(canvas){var s=canvasState.get(canvas);return s?{commands:s.commands.length,depth:s.depth,unsupported:s.unsupported}:null;};
   var props = ['fillStyle','strokeStyle','font','textAlign','textBaseline','lineWidth','lineCap','lineJoin','miterLimit','globalAlpha','globalCompositeOperation','shadowBlur','shadowColor','shadowOffsetX','shadowOffsetY','lineDashOffset','imageSmoothingEnabled'];
   // Install before PMDG creates charts. Keep vector commands for redraw on a new client.
   try { if (window.CanvasRenderingContext2D) {
@@ -121,7 +129,13 @@
       if (!d || !d.set || !d.configurable) return;
       Object.defineProperty(proto, name, { configurable: true, enumerable: d.enumerable, get: d.get, set: function (v) {
         d.set.call(this, v);
-        var s = state(this.canvas); mark(this.canvas);
+        var s = state(this.canvas);
+        // Native assignment always runs. Redundant assignments need no second
+        // replay command; save/restore below also restores this shadow cache.
+        // These string styles can resolve relative to CSS (em/currentColor).
+        // Reassigning the same text can therefore change their native value.
+        if(name!=='font'&&name!=='fillStyle'&&name!=='strokeStyle'&&Object.prototype.hasOwnProperty.call(s.assigned,name)&&s.assigned[name]===v)return;
+        s.assigned[name]=v;s.styleVersion=++canvasStyleSerial;markCanvas(this.canvas,s);
         if (s.commands.length < 60000 && (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')) s.commands.push(['set', name, v]);
         else s.unsupported = true;
       }});
@@ -129,14 +143,25 @@
     ['save','restore','beginPath','closePath','moveTo','lineTo','bezierCurveTo','quadraticCurveTo','arc','arcTo','ellipse','rect','fill','stroke','clip','fillRect','strokeRect','clearRect','fillText','strokeText','translate','rotate','scale','transform','setTransform','resetTransform','setLineDash','drawImage','putImageData'].forEach(function (name) {
       var fn = proto[name]; if (!fn) return;
       proto[name] = function () {
-        var a = Array.prototype.slice.call(arguments), s = state(this.canvas); mark(this.canvas);
-        if (name === 'clearRect' && !s.depth && a[0] === 0 && a[1] === 0 && a[2] >= this.canvas.width && a[3] >= this.canvas.height) {
+        var s = state(this.canvas);
+        if (name === 'clearRect' && !s.depth && arguments[0] === 0 && arguments[1] === 0 && arguments[2] >= this.canvas.width && arguments[3] >= this.canvas.height) {
           s.commands = []; s.unsupported = false;
-          for (var i = 0; i < props.length; i++) if (typeof this[props[i]] !== 'object') s.commands.push(['set', props[i], this[props[i]]]);
+          // Reuse verified native styles across full redraws instead of
+          // calling every native property getter on every full clear.
+          if(s.clearVersion!==s.styleVersion){
+            s.clearState=[];
+            for(var i=0;i<props.length;i++){var value=this[props[i]];if(typeof value!=='object')s.clearState.push(['set',props[i],value]);}
+            s.clearVersion=s.styleVersion;
+          }
+          s.commands=s.clearState.slice();
           if (this.getTransform) { var t = this.getTransform(); s.commands.push(['setTransform',t.a,t.b,t.c,t.d,t.e,t.f]); }
         }
-        if (name === 'save') s.depth++;
-        if (name === 'restore') s.depth = Math.max(0, s.depth - 1);
+        if (name === 'save') {s.depth++;s.stack.push({assigned:Object.assign({},s.assigned),version:s.styleVersion});}
+        if (name === 'restore') {s.depth=Math.max(0,s.depth-1);var saved=s.stack.pop();if(saved){s.assigned=saved.assigned;s.styleVersion=saved.version;}}
+        // Keep native drawing and stack bookkeeping at the cap, without making
+        // throw-away argument arrays for every subsequent vertex/text call.
+        if(s.commands.length>=60000){if(!s.unsupported){s.unsupported=true;markCanvas(this.canvas,s);}return fn.apply(this,arguments);}
+        var a=Array.prototype.slice.call(arguments);markCanvas(this.canvas,s);
         if (name === 'drawImage') {
           if (a[0] && a[0].tagName === 'IMG') a[0] = { image: a[0].currentSrc || a[0].src };
           else { s.unsupported = true; a = null; }
@@ -152,6 +177,19 @@
         d.set.call(this, v); canvasState.delete(this); mark(this);
       }});
     });
+    // Attribute writes also reset the native bitmap/context, even when the
+    // numeric size stays unchanged. Do not reuse styles from before that reset.
+    ['setAttribute','setAttributeNS','removeAttribute','removeAttributeNS'].forEach(function(name){
+      var fn=HTMLCanvasElement.prototype[name];if(!fn)return;
+      HTMLCanvasElement.prototype[name]=function(){
+        var result=fn.apply(this,arguments),key=String(arguments[/NS$/.test(name)?1:0]).toLowerCase();
+        if(key==='width'||key==='height'){canvasState.delete(this);mark(this);}
+        return result;
+      };
+    });
+    if(typeof proto.reset==='function'){
+      var resetContext=proto.reset;proto.reset=function(){var result=resetContext.apply(this,arguments);canvasState.delete(this.canvas);mark(this.canvas);return result;};
+    }
     canvasInstrumented = true;
   } } catch (_) { /* An unsupported canvas API must never disable normal EFB controls. */ }
   function asset(value, base) {
@@ -212,7 +250,7 @@
       if ('value' in node && /^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName)) { propertyNodes.add(node); r.value = node.value; r.checked = !!node.checked; }
       r.scroll = [Math.round(node.scrollLeft), Math.round(node.scrollTop)];
       if (node.tagName === 'CANVAS') {
-        var s = state(node); r.canvas = { width: node.width, height: node.height, commands: s.commands.map(function (cmd) {
+        var s = state(node); s.queued=false; r.canvas = { width: node.width, height: node.height, commands: s.commands.map(function (cmd) {
           if (cmd[0] !== 'drawImage' || !cmd[1].image) return cmd;
           var copy = cmd.slice(); copy[1] = {image:asset(cmd[1].image)}; return copy;
         }), unsupported: s.unsupported || !canvasInstrumented };
@@ -224,6 +262,7 @@
         else r.attrs.src = asset(src);
       }
       r.children = [];
+      var view=viewState(node);if(view){r.view=view;viewNodes.add(node);}
       if (node.tagName !== 'IFRAME') Array.prototype.forEach.call(node.childNodes, function (child) {
         if (!serializable(child)) return;
         var cid=id(child);
@@ -254,7 +293,7 @@
     var now=Date.now(), started=performance.now(), records=new Map(), removed=[], changed=[];
     metrics.snapshots++;
     if (force) {
-      metrics.full++; live.clear(); currentRecords.clear(); propertyNodes.clear(); previous.clear();
+      metrics.full++; live.clear(); currentRecords.clear(); propertyNodes.clear(); viewNodes.clear(); previous.clear();
       resourceOwners.forEach(function(_,owner){releaseResources(owner);});
       rootKey=read(document.body,records,true); cssDirty=true; geometryDirty=true;
     } else {
@@ -263,12 +302,16 @@
         var node=live.get(key), old=currentRecords.get(key);
         if (!node || document.documentElement.contains(node)) return;
         if (old && old.children) old.children.forEach(forget);
-        releaseResources(node); propertyNodes.delete(node); dirtyNodes.delete(node);
+        releaseResources(node); propertyNodes.delete(node); viewNodes.delete(node); dirtyNodes.delete(node);
         live.delete(key); currentRecords.delete(key); previous.delete(key); removed.push(key);
       }
       detachedRoots.forEach(function(node){if(ids.has(node))forget(ids.get(node));});
       dirtyNodes.forEach(function(node){
         if (document.body.contains(node) && serializable(node)) read(node,records,false);
+      });
+      viewNodes.forEach(function(node){
+        var old=records.get(id(node))||currentRecords.get(id(node));
+        if(document.body.contains(node)&&old&&JSON.stringify(old.view)!==JSON.stringify(viewState(node)))read(node,records,false);
       });
     }
     dirtyNodes.clear(); detachedRoots.clear();
@@ -296,10 +339,11 @@
       currentRecords.set(key,r); previous.set(key,json);
     });
     var geometry=JSON.stringify([innerWidth,innerHeight,geometryCache,aircraftCache]);
-    if (force || changed.length || removed.length || styleChanged || geometry!==lastGeometry) {
+    if (force || changed.length || removed.length || styleChanged || geometry!==lastGeometry || viewAcks.length) {
       var msg={type:force?'frame':'patch',epoch:epoch,seq:++sequence,root:rootKey,nodes:changed,removed:removed,width:innerWidth,height:innerHeight,contentRect:geometryCache,aircraft:aircraftCache};
       if(force || styleChanged){msg.css=styleCache;msg.stylesheets=linksCache;}
-      if(send(msg)){lastStyle=styleKey;lastGeometry=geometry;force=false;}else force=true;
+      if(viewAcks.length)msg.viewAcks=viewAcks.slice(0,128);
+      if(send(msg)){if(msg.viewAcks)viewAcks.splice(0,msg.viewAcks.length);lastStyle=styleKey;lastGeometry=geometry;force=false;}else force=true;
     }
     var elapsed=performance.now()-started;
     metrics.totalMs+=elapsed; metrics.maxMs=Math.max(metrics.maxMs,elapsed);
@@ -350,6 +394,21 @@
     if (m.epoch !== epoch) return;
     var n = live.get(m.id); if (!n || n.nodeType !== 1 || !document.documentElement.contains(n)) return;
     var name = m.event;
+    if(name==='view-scroll'||name==='view-map'){
+      if(typeof m.token!=='string'||m.token.length>80||!m.token||viewAcks.length>=128)return;
+      var ok=false;
+      if(name==='view-scroll'&&Number.isFinite(m.x)&&Number.isFinite(m.y)&&m.x>=0&&m.y>=0&&m.x<=20000000&&m.y<=20000000){
+        var view=viewState(n);
+        if(!m.viewKey||(view&&view.key===m.viewKey)){n.scrollLeft=m.x;n.scrollTop=m.y;ok=true;}
+      }
+      if(name==='view-map'&&Number.isFinite(m.lat)&&Number.isFinite(m.lon)&&Math.abs(m.lat)<=85.05112879&&Math.abs(m.lon)<=180&&Number.isFinite(m.zoom)&&Number.isFinite(m.bearing)){
+        try{ok=!!(window.PMDGLanViewAdapter&&window.PMDGLanViewAdapter.commitMap(n,m));}catch(_){}
+        // Capture the changed view, tile transforms and marker positions in one
+        // patch after the current native handler turn has completed.
+        mark(n);if(n.querySelectorAll)n.querySelectorAll('*').forEach(mark);
+      }
+      mark(n);viewAcks.push({id:m.id,token:m.token,ok:ok});nextSnapshot=0;return;
+    }
     if (name === 'scroll') { n.scrollLeft = +m.x || 0; n.scrollTop = +m.y || 0; return; }
     if (name === 'input' || name === 'change') {
       if (!/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName) || n.disabled || n.readOnly) return;

@@ -13,7 +13,7 @@ internal static class SelfTest {
         Put(Path.Combine(config,"UserCfg.opt"),$"InstalledPackagesPath \"{packages}\"");
         Put(Path.Combine(community,"maker-airport-vhhh-hongkong","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"VHHH Hong Kong Airport\"}");
         Put(Path.Combine(community,"maker-airport-vhhh-hongkong","layout.json"),"{\"content\":[{\"path\":\"AirportServices/VHHH/Services.spb\"}]}");
-        Put(Path.Combine(packages,"Community","maker-yaye-ayersrock","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"YAYE Ayers Rock Airport\"}");
+        Put(Path.Combine(packages,"Community","maker-yaye-ayersrock","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"YAYE Ayers Rock Airport\",\"package_order_hint\":\"CUSTOM_SCENERY\"}");
         Put(Path.Combine(packages,"Official2024","OneStore","maker-airport-ymml-melbourne","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"YMML Melbourne Airport\",\"package_order_hint\":\"CUSTOM_AIRPORT\"}");
         Put(Path.Combine(packages,"StreamedPackages","fs20-maker-airport-ebbr-brussels","content","minimal.fsarchive"),"Do not decode or change");
         Put(Path.Combine(packages,"Official2020","Steam","maker-airport-vhhh-hongkong","manifest.json"),"{\"content_type\":\"SCENERY\"}");
@@ -24,10 +24,22 @@ internal static class SelfTest {
         Put(Path.Combine(community,"bad-airport-egll-london","manifest.json"),"broken JSON");
         Put(Path.Combine(community,"maker-airport-city","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"CITY Airport scenery\"}");
         Put(Path.Combine(community,"maker-airport-vhhh-extra","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"BATC Airport compatibility\"}");
+        // Patch-only airports must disappear; a patch for a separately installed
+        // real airport must not remove that airport or count as its provenance.
+        Put(Path.Combine(community,"fix-airport-klax-patch","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"KLAX Airport Fix\",\"package_order_hint\":\"CUSTOM_AIRPORT_PATCH\"}");
+        Put(Path.Combine(community,"fix-airport-klax-patch","layout.json"),"{\"content\":[{\"path\":\"AirportServices/KLAX/Services.spb\"}]}");
+        Put(Path.Combine(community,"fix-airport-vhhh-patch","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"VHHH Airport Fix\",\"package_order_hint\":\"CUSTOM_AIRPORT_PATCH\"}");
+        Put(Path.Combine(community,"fix-airport-vhhh-patch","layout.json"),"not JSON - patch layout must not be read");
+        Put(Path.Combine(packages,"Official2024","OneStore","fix-airport-wsss-patch","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"WSSS Airport Fix\",\"package_order_hint\":\" custom_airport_patch \"}");
+        Put(Path.Combine(packages,"StreamedPackages","fix-airport-eham-patch","content","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"EHAM Airport Fix\",\"package_order_hint\":\"CUSTOM_AIRPORT_PATCH\"}");
+        Put(Path.Combine(community,"fix-airport-unknown","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"Airport Fix\",\"package_order_hint\":\"CUSTOM_AIRPORT_PATCH\"}");
         var before=Directory.GetFiles(packages,"*",SearchOption.AllDirectories).ToDictionary(p=>p,File.ReadAllText);
         var inventory=AirportScanner.Scan(community,config);
         Check(inventory.Icaos.SequenceEqual(new[]{"EBBR","EGLL","VHHH","YAYE","YMML"}),"Scanner extracts sorted distinct Community, Official and streamed ICAOs, ignoring service/aircraft packs");
         Check(inventory.Airports.Single(a=>a.Icao=="VHHH").Packages.Length==3&&!inventory.Icaos.Contains("BATC"),"Scanner retains provenance and prefers airport codes over unrelated title words");
+        Check(!inventory.Icaos.Intersect(new[]{"KLAX","WSSS","EHAM"}).Any()&&inventory.Airports.All(a=>a.Packages.All(p=>!p.Package.StartsWith("fix-"))),"Explicit patches excluded in Community, Official and streamed packages; real VHHH preserved");
+        Check(inventory.UnresolvedPackages.All(p=>!p.Package.StartsWith("fix-")),"Patches are excluded, not listed as unresolved airports");
+        Check(inventory.Icaos.Contains("YAYE")&&inventory.Icaos.Contains("YMML")&&inventory.Icaos.Contains("VHHH"),"Missing or non-CUSTOM_AIRPORT hint does not reject airports");
         Check(inventory.UnresolvedPackages.Length==2&&inventory.Warnings.Length==1,"Scanner records unknown packages and bad metadata without failing");
         Check(!inventory.AvailabilityVerified&&inventory.ScannedAtUtc!=null,"Scanner does not claim package enablement");
         var json=JsonSerializer.Serialize(inventory);Check(!json.Contains(packages.Replace("\\","\\\\")),"Shared inventory contains no absolute local paths");
@@ -50,7 +62,12 @@ internal static class SelfTest {
         var root=Path.Combine(output,"gui-test-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
         var checks=new List<string>();var log=new List<string>();
         try {
+            LanguageSelfTest.Run(root);checks.Add("Installer languages: system fallback, persisted override, bilingual messages and live switching without losing input or airport selections");
             ScanAirports(root);checks.Add("机场元数据扫描：Community/Community2024、Official2020/2024、流式缓存、去重来源、无配置路径、损坏文件与未识别包；不修改机场文件，不确认启用状态");
+            checks.Add("排除 CUSTOM_AIRPORT_PATCH：覆盖 Community / Official / 流式 content、大小写和空格、补丁专有机场及真实机场加补丁；缺失或其他 hint 仍沿用原识别规则");
+            AirportInventorySelfTest.Run(root);checks.Add("机场管理：旧列表迁移、默认勾选、机场名称、即时保存、仅启用 ICAO、增量 layout、刷新保留排除项、新机场和重现机场、空列表、损坏文件保护及复选框失败回退");
+            checks.Add("机场制作组：manufacturer 优先、creator 回退、空白/缺失/null/非字符串处理、旧列表兼容、同 ICAO 多制作组去重、持久化与刷新保留选择、制作组排序后正确勾选");
+            checks.Add("机场启动加载：已有列表保留勾选且不扫描或写入；无列表首次扫描生成；手动刷新才发现新机场；损坏列表不被重扫覆盖");
             var local=Path.Combine(root,"本地资料");var roaming=Path.Combine(root,"用户资料");
             var cfgRoot=Path.Combine(local,"Packages","Microsoft.Limitless_8wekyb3d8bbwe","LocalCache");
             Check(Paths.Detect(local,roaming).Locations.Count==0,"Empty discovery");
@@ -74,12 +91,17 @@ internal static class SelfTest {
             // A file here makes any attempt to create/use backups fail immediately.
             Put(Path.Combine(app,"backups"),"Do not touch legacy backup storage");
             Put(Path.Combine(community,"pmdg-aircraft-777","vendor.txt"),"Vendor package stays intact");
+            Put(Path.Combine(community,"maker-airport-vhhh-hongkong","manifest.json"),"{\"content_type\":\"SCENERY\",\"title\":\"VHHH Hong Kong Airport\"}");
             Put(Path.Combine(target,"original.txt"),"original EFB");
             var engine=new Installer(bundle,app,false);var progress=new Log(log);
             engine.Install(new(community,"",false,StartNow:false,AirlabsApiKey:"SELF-TEST-ONLY-KEY"),progress);
             Check(engine.Airlabs().ApiKey=="SELF-TEST-ONLY-KEY","AirLabs key persisted in EFB-only mode");
             Check(File.ReadAllText(Path.Combine(target,Installer.AirlabsRelative)).Contains("SELF-TEST-ONLY-KEY"),"Native AirLabs settings installed");
             Check(File.ReadAllText(Path.Combine(target,Installer.AirportsRelative))==File.ReadAllText(Path.Combine(app,"installed-airports.json")),"Airport snapshot copied to native EFB and local app data");
+            Check(engine.Airports().Icaos.SequenceEqual(new[]{"VHHH"}),"Installed airports initially enabled");
+            engine.SetAirportEnabled("VHHH",false);var savedAt=File.GetLastWriteTimeUtc(Path.Combine(app,"installed-airports.json"));
+            engine.SetAirportEnabled("VHHH",false);Check(File.GetLastWriteTimeUtc(Path.Combine(app,"installed-airports.json"))==savedAt,"Unchanged checkbox has no IO");
+            Check(engine.RefreshAirports("ignored","").Icaos.Length==0,"Manager refresh uses installed paths and preserves selection");
             Check(engine.State()?.WithLan==false,"EFB-only state");
             Check(!Directory.Exists(Path.Combine(target,Installer.HostRelative)),"EFB-only host removed");
             Check(!File.ReadAllText(Path.Combine(target,htmlRelative)).Contains("lan-bridge"),"EFB-only imports removed");
@@ -94,6 +116,7 @@ internal static class SelfTest {
             Put(Path.Combine(cfgRoot,"exe.xml"),"<SimBase.Document Type=\"Launch\" version=\"1,0\"><Launch.Addon><Name>Other Addon</Name><Path>C:\\Other.exe</Path></Launch.Addon></SimBase.Document>");
             var port=FreePort();var options=new InstallOptions(community,cfgRoot,true,port,true,false);
             engine.Install(options,progress);var key=engine.Config()!.PairingKey;
+            Check(engine.Airports().Icaos.Length==0&&!engine.Airports().Airports.Single().Enabled,"Update and EFB/LAN mode change preserve airport selection");
             Check(engine.Airlabs().ApiKey=="SELF-TEST-ONLY-KEY","AirLabs key preserved on update with unspecified key");
             Check(File.ReadAllText(Path.Combine(target,Installer.AirlabsRelative)).Contains("SELF-TEST-ONLY-KEY"),"Key restored to updated package");
             Check(System.Text.RegularExpressions.Regex.IsMatch(key,@"\A[0-9]{4}\z"),"Four digit pairing code");
@@ -122,7 +145,7 @@ internal static class SelfTest {
             checks.Add("端口占用时停止安装且保留原配置");
             Put(Path.Combine(target,"old-install-marker.txt"),"Do not restore");
             var broken=new Installer(bundle,app,false,checkpoint:_=>throw new IOException("Injected copy failure"));
-            var failedInstall=false;try{broken.Install(options,progress);}catch(IOException e){failedInstall=e.Message.Contains("重新安装");}
+            var failedInstall=false;try{broken.Install(options,progress);}catch(IOException e){failedInstall=e.Message.Contains(Ui.T("文件可能已部分更新，请排除原因后重新安装。"));}
             Check(failedInstall&&!File.Exists(Path.Combine(target,"old-install-marker.txt")),"No rollback; report incomplete install");
             Check(!Directory.EnumerateDirectories(Path.Combine(app,"staging")).Any(),"Temporary payload cleaned after failure");
             engine.Install(options,progress);checks.Add("安装失败明确提示重新安装，清理临时载荷，重试可完成");
@@ -149,23 +172,30 @@ internal static class SelfTest {
         Directory.CreateDirectory(community);Put(Path.Combine(sim,"UserCfg.opt"),"fixture");
         var engine=new Installer(Paths.Full(bundle),app,true,Environment.ProcessPath,menuOverride:menu);var lines=new List<string>();
         try {
-            var port=FreePort();Task.Run(()=>engine.Install(new(community,sim,true,port,true,true),new Log(lines))).GetAwaiter().GetResult();
+            var port=FreePort();Task.Run(()=>engine.Install(new(community,sim,true,port,true,false),new Log(lines))).GetAwaiter().GetResult();
+            Check(!engine.Running(),"Install registers autostart without launching the LAN service");
+            Check(engine.State() is {WithLan:true,AutoStart:true},"Default install includes LAN and simulator autostart");
+            var addon=XDocument.Load(Path.Combine(sim,"exe.xml")).Root!.Elements("Launch.Addon").Single(x=>(string?)x.Element("Name")==Installer.LaunchName);
+            Check((string?)addon.Element("CommandLine")=="--sim-start"&&(string?)addon.Element("Disabled")=="False","Simulator autostart entry remains enabled");
+            engine.Start();
             Check(engine.Running(),"Real service start");
             Put(Path.Combine(app,"web","navigraph-app.js"),"obsolete app");Put(Path.Combine(app,"web","navigraph-app.css"),"obsolete style");
             Put(Path.Combine(app,"navigraph.json"),"{\"ClientId\":\"preserve-local-config\"}");
-            Task.Run(()=>engine.Install(new(community,sim,true,port,true,true),new Log(lines))).GetAwaiter().GetResult();
+            Task.Run(()=>engine.Install(new(community,sim,true,port,true,false),new Log(lines))).GetAwaiter().GetResult();
+            Check(!engine.Running(),"Update also leaves LAN service stopped until simulator start");
+            engine.Start();
             Check(!File.Exists(Path.Combine(app,"web","navigraph-app.js"))&&!File.Exists(Path.Combine(app,"web","navigraph-app.css")),"Retired Navigraph app files removed during upgrade");
             Check(File.ReadAllText(Path.Combine(app,"navigraph.json")).Contains("preserve-local-config"),"Dormant local configuration preserved");
             var target=Path.Combine(community,"pmdg-tablet-v2");CheckImports(target,true);
             using(var http=new System.Net.Http.HttpClient{Timeout=TimeSpan.FromSeconds(5)})Check(http.GetStringAsync($"http://127.0.0.1:{port}/health").GetAwaiter().GetResult().Contains("EFB v2 LAN"),"Real service HTTP");
-            Check(File.Exists(Path.Combine(menu,"EFB v2 安装与管理.lnk")),"GUI shortcut");Check(File.Exists(engine.State()!.ManagerPath!),"Installed manager");
+            Check(File.Exists(Path.Combine(menu,Installer.ManagerShortcutName+".lnk")),"GUI shortcut");Check(File.Exists(engine.State()!.ManagerPath!),"Installed manager");
             Task.Run(()=>engine.Install(new(community,sim,false,port,false,false),new Log(lines))).GetAwaiter().GetResult();
             Check(!engine.Running()&&!File.Exists(Path.Combine(app,"EfbLanBridge.exe")),"Real service stopped and removed");
             Check(!Directory.Exists(Path.Combine(target,Installer.HostRelative)),"Pure EFB package");CheckImports(target,false);
             Check(Directory.GetFiles(target,"PMDGTablet.js",SearchOption.AllDirectories).Length>0,"Native EFB retained");
             Task.Run(()=>engine.Uninstall(new Log(lines))).GetAwaiter().GetResult();Check(!Directory.Exists(target),"Fresh installation removed");
             Check(!Directory.Exists(Path.Combine(app,"backups")),"No backups with real payload");
-            File.WriteAllText(Path.Combine(output,"gui-package-test.json"),JsonSerializer.Serialize(new{passed=true,checks=new[]{"完整发行载荷安装","所有 CA/FO 页面导入各一次且配置先加载，仅 EFB 模式全部移除","真实服务启动和 HTTP 检查","后台线程生成 GUI 和服务快捷方式","管理器复制到用户目录","LAN 切回仅 EFB并停止真实进程","卸载首次无原版时移除软件包"},fixture=root,lines},new JsonSerializerOptions{WriteIndented=true}));return 0;
+            File.WriteAllText(Path.Combine(output,"gui-package-test.json"),JsonSerializer.Serialize(new{passed=true,checks=new[]{"完整发行载荷安装","安装与更新保持服务停止、注册随模拟器自动启动","所有 CA/FO 页面导入各一次且配置先加载，仅 EFB 模式全部移除","真实服务启动和 HTTP 检查","后台线程生成 GUI 和服务快捷方式","管理器复制到用户目录","LAN 切回仅 EFB并停止真实进程","卸载首次无原版时移除软件包"},fixture=root,lines},new JsonSerializerOptions{WriteIndented=true}));return 0;
         } catch(Exception e){File.WriteAllText(Path.Combine(output,"gui-package-test.json"),JsonSerializer.Serialize(new{passed=false,error=e.ToString(),fixture=root,lines},new JsonSerializerOptions{WriteIndented=true}));return 1;}
         finally{engine.Stop();}
     }

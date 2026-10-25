@@ -10,6 +10,48 @@ Get-ChildItem -LiteralPath $source -Force | Copy-Item -Destination $shared -Recu
 $prefix='/Pages/VCockpit/Instruments/PMDGTablet/shared'
 $wrapper=@'
 function installRemoteApps(bus) {
+    // PMDG's core initializer skips Settings when Navigraph initialization
+    // rejects/times out. Read the existing simulator store before forms render.
+    // Never replace saved values with a separate defaults/backup store.
+    if (typeof Settings !== 'undefined' && !Settings.settings_initialized && typeof Settings.initialize === 'function') {
+        try {
+            Settings.initialize();
+            ScreenManager.initializeBrightness(getTabletSide());
+        } catch (_) { console.warn('PMDG settings initialization could not complete.'); }
+    }
+    // Read/commit view state only; PMDG remains responsible for its map engine.
+    const mapKeys = new WeakMap(); let mapSerial = 0;
+    const nativeMap = node => {
+        const dual = typeof Dashboard !== 'undefined' && Dashboard.dualMap;
+        const map = dual && dual.leafletMapInstance;
+        return map && map.getContainer() === node ? {dual, map} : null;
+    };
+    const mapView = item => {
+        const {dual,map} = item, center = map.getCenter(), zoom = map.getZoom();
+        const bearing = map.getBearing ? map.getBearing() : 0;
+        if (!mapKeys.has(map)) mapKeys.set(map, String(++mapSerial));
+        const source = dual.selectedMap, locked = !!dual.isLocationLocked || !map.dragging.enabled();
+        return {kind:'map',key:JSON.stringify([mapKeys.get(map),source,zoom,bearing,locked]),source,locked,lat:center.lat,lon:center.lng,zoom,bearing};
+    };
+    window.PMDGLanViewAdapter = {
+        read: node => {
+            const item = nativeMap(node); if (item) return mapView(item);
+            if (node.id === 'efb_navigraph_chart_container_scroll' && typeof Charts !== 'undefined') {
+                const image = document.getElementById('efb_navigraph_chart_image');
+                return {kind:'chart',key:JSON.stringify([Charts.selected_chart && Charts.selected_chart.id,Charts.current_zoom,image && image.style.width,image && image.style.height])};
+            }
+            return null;
+        },
+        commitMap: (node, value) => {
+            const item = nativeMap(node); if (!item) return false;
+            const view = mapView(item);
+            if (view.locked || view.key !== value.key || view.zoom !== value.zoom || Math.abs(view.bearing-value.bearing)>0.00001) return false;
+            item.map.stop();
+            item.map.setView([value.lat,value.lon],view.zoom,{animate:false});
+            const center = item.map.getCenter(); item.dual.center = {lat:center.lat,lon:center.lng};
+            return true;
+        }
+    };
     // Reuse PMDG's bundled SDK for on-demand IniJetway/SimBrief location reads.
     let jetwayLoader, jetwaySession, jetwayAirports = [], airportRead = Promise.resolve();
     window.PMDGSharedApps.install(bus, {

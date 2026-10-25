@@ -8,6 +8,7 @@
   const controls = document.getElementById('lan-controls');
   const reconnect = document.getElementById('reconnect');
   const aircraft = document.getElementById('lan-aircraft');
+  let currentAircraft='', lastAircraft='';
   function mountControls(enabled) {
     const bar = doc.getElementById('StatusBar');
     const slot = doc.getElementById('statusbar_time')?.nextElementSibling;
@@ -18,8 +19,9 @@
   }
   let socket, retry, timeout, epoch, sequence = 0, width = 1280, height = 1024, scale = 1, online = false;
   let serverTime = 0, localTime = 0, lastReceive = 0;
-  let contentRect = null;
-  let nodes = new Map(), records = new Map(), scrollGuard = new WeakMap(), inputGuard = new WeakMap(), images = new Map();
+  let contentRect = null, rootId;
+  let gestures;
+  let nodes = new Map(), records = new Map(), inputGuard = new WeakMap(), images = new Map();
   let doc = frame.contentDocument;
   doc.open(); doc.write('<!doctype html><html><head><style id="native-css"></style><style>html,body{margin:0;overflow:hidden}iframe{border:0}body{font-family:Arial,sans-serif}canvas[data-incomplete] {outline:1px dashed #a98b4d}</style></head><body></body></html>'); doc.close();
   const css = doc.getElementById('native-css');
@@ -29,6 +31,11 @@
   const controlStyle = doc.createElement('link');
   controlStyle.rel='stylesheet'; controlStyle.href='/lan-controls.css'; doc.head.appendChild(controlStyle);
   const stylesheetNodes = new Map();
+  gestures = window.EfbLanGestures({doc,record:n=>records.get(n.__efbId),online:()=>online,action:(...args)=>action(...args),repaint:(n,deep)=>render(viewRecords(n,deep))});
+  function viewRecords(n,deep) {
+    if(!n)return Array.from(records.values());
+    const found=[];function visit(id){const r=records.get(id);if(!r)return;found.push(r);if(deep)for(const child of r.children||[])visit(child);}visit(n.__efbId);return found;
+  }
   function fit() {
     // Keep native layout/coordinates intact, but exclude unused simulator texture
     // space from the fit calculation. The outer surface clips that space away.
@@ -63,7 +70,13 @@
   if (window.ResizeObserver) new ResizeObserver(fit).observe(viewport);
   window.visualViewport?.addEventListener('resize', fit);
   fit();
-  function state(text, enabled) { status.textContent = text; online = enabled; offline.hidden = enabled; mountControls(enabled); }
+  function state(text, enabled) {
+    if(!enabled&&gestures.cancelAll())render(Array.from(records.values()));
+    status.textContent = text; online = enabled; offline.hidden = enabled;
+    aircraft.textContent=enabled?(currentAircraft||'—'):(lastAircraft?'Last used: '+lastAircraft:'—');
+    aircraft.setAttribute('aria-label',enabled?'Current aircraft':'Last used aircraft');
+    mountControls(enabled);
+  }
   function send(m) { if (socket && socket.readyState === 1) socket.send(JSON.stringify(m)); }
   function safeUrl(v) { return /^(\/assets\/|\/resources\/|https?:\/\/|data:image\/|#)/i.test(v) ? v : ''; }
   const valueTimers = new WeakMap();
@@ -112,9 +125,9 @@
     for (const cmd of data.commands) { try { if (cmd[0] === 'set' && typeof ctx[cmd[1]] !== 'function' && cmd[1] !== '__proto__') ctx[cmd[1]] = cmd[2]; else if (allowed.has(cmd[0])) { const a = cmd.slice(1); if (cmd[0] === 'drawImage') { a[0] = loaded.get(a[0].image); if (!a[0]) continue; } ctx[cmd[0]](...a); } } catch (_) {} }
   }
   function apply(m) {
-    if (m.type === 'frame') { if (epoch !== m.epoch) { nodes.clear(); doc.body.replaceChildren(); } epoch = m.epoch; sequence = 0; records.clear(); }
+    if (m.type === 'frame') { if (epoch !== m.epoch) { gestures.cancelAll();nodes.clear(); doc.body.replaceChildren(); } epoch = m.epoch; sequence = 0; records.clear(); }
     else if (m.epoch !== epoch || m.seq !== sequence + 1) { send({type:'resync'}); return; }
-    sequence = m.seq; width = m.width; height = m.height;
+    sequence = m.seq; rootId=m.root; width = m.width; height = m.height;
     contentRect = m.contentRect || null;
     if (m.css !== undefined) css.textContent = m.css;
     if (m.stylesheets) {
@@ -124,22 +137,33 @@
       }
     }
     for (const r of m.nodes) records.set(r.id, r);
-    for (const id of m.removed || []) { records.delete(id); nodes.get(id)?.remove(); nodes.delete(id); }
-    for (const r of m.nodes) update(r);
-    // Reconcile in place: unchanged native inputs and GSX/BATC frames retain their state.
-    for (const r of records.values()) if (r.children) {
-      const n = nodes.get(r.id); let at = n.firstChild;
-      for (const id of r.children) { const child = nodes.get(id); if (!child) continue; if (at !== child) n.insertBefore(child, at); at = child.nextSibling; }
-      while (at) { const next = at.nextSibling; if (at !== controls) at.remove(); at = next; }
-    }
-    const root = nodes.get(m.root); if (root && doc.body !== root) doc.body.replaceWith(root);
-    for (const [id, n] of nodes) if (!records.has(id)) { n.remove(); nodes.delete(id); }
-    for (const r of m.nodes) if (r.scroll && nodes.has(r.id)) { const n = nodes.get(r.id); if (Math.abs(n.scrollTop - r.scroll[1]) > 1 || Math.abs(n.scrollLeft - r.scroll[0]) > 1) { scrollGuard.set(n, Date.now()); n.scrollLeft = r.scroll[0]; n.scrollTop = r.scroll[1]; } }
+    for (const id of m.removed || []) records.delete(id);
+    const refresh=gestures.receive(m);
+    for (const id of m.removed || []) { const n=nodes.get(id);if(!n||gestures.deferred(n))continue;n.remove();nodes.delete(id); }
+    if(refresh.length){
+      const updated=new Map(m.nodes.map(r=>[r.id,r]));
+      for(const item of refresh)for(const r of viewRecords(item.n,item.deep))updated.set(r.id,r);
+      render(Array.from(updated.values()));
+    }else render(m.nodes);
     // This selector is visible only in native Navigraph mode. Keep the marker on
     // the LAN document root so it is never sent back to the simulator's DOM.
     doc.documentElement.classList.toggle('efb-lan-navi-mode', !!doc.getElementById('efb_dashboard_map_leaflet_source')?.classList.contains('visible'));
-    aircraft.textContent = typeof m.aircraft === 'string' && m.aircraft ? m.aircraft : '—';
-    fit(); state('已连接 · ' + side.value + '（与模拟器共用页面）', true);
+    currentAircraft=typeof m.aircraft === 'string'&&m.aircraft&&m.aircraft!=='—'?m.aircraft:'';
+    if(currentAircraft)lastAircraft=currentAircraft;
+    fit(); state('Connected · ' + side.value + ' · Simulator EFB', true);
+  }
+  function render(updated) {
+    for (const r of updated) if(!nodes.has(r.id)||!gestures.deferred(nodes.get(r.id)))update(r);
+    // Reconcile in place: unchanged native inputs and GSX/BATC frames retain their state.
+    for (const r of records.values()) if (r.children) {
+      const n = nodes.get(r.id);if(!n||gestures.deferred(n))continue;let at = n.firstChild;
+      for (const id of r.children) { const child = nodes.get(id); if (!child) continue; if (at !== child) n.insertBefore(child, at); at = child.nextSibling; }
+      while (at) { const next = at.nextSibling; if (at !== controls) at.remove(); at = next; }
+    }
+    const root = nodes.get(rootId); if (root && doc.body !== root) doc.body.replaceWith(root);
+    for (const [id, n] of nodes) if (!records.has(id)&&!gestures.deferred(n)) { n.remove(); nodes.delete(id); }
+    for (const r of updated) if(r.scroll&&nodes.has(r.id))gestures.applyScroll(nodes.get(r.id),r.scroll);
+    if(gestures.afterPatch())render(Array.from(records.values()));
   }
   function action(n, event, extra) { if (!online || !serverTime || !n?.__efbId) return; send(Object.assign({type:'action',epoch,id:n.__efbId,event,createdAt:Math.round(serverTime + performance.now() - localTime)}, extra)); }
   for (const name of ['input','change']) doc.addEventListener(name, e => { inputGuard.set(e.target, Date.now()); action(e.target, name, {value:e.target.value,checked:e.target.checked}); }, true);
@@ -228,27 +252,26 @@
     if (t) { mapTouch.x=t.clientX; mapTouch.y=t.clientY; finishMapTouch(name==='touchcancel'); }
   },{capture:true,passive:false});
   window.addEventListener('blur',()=>finishMapTouch(true));
-  doc.addEventListener('scroll', e => { if (Date.now() - (scrollGuard.get(e.target) || 0) > 150) action(e.target,'scroll',{x:e.target.scrollLeft,y:e.target.scrollTop}); }, true);
   function connect() {
-    finishMapTouch(true); controlTouch=null;
+    gestures.cancelAll();finishMapTouch(true); controlTouch=null;
     clearTimeout(retry); if (socket) { socket.onclose = null; socket.close(); }
-    state('连接中…', false);
+    state('Connecting…', false);
     const s = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/client?side=' + side.value); socket = s;
     timeout = setTimeout(() => s.close(), 8000);
     s.onopen = () => { clearTimeout(timeout); lastReceive = Date.now(); serverTime = 0; pair.hidden = true; send({type:'resync'}); };
-    s.onmessage = e => { if (socket !== s) return; lastReceive = Date.now(); const m = JSON.parse(e.data); if (m.type === 'ping') { serverTime = m.now; localTime = performance.now(); send({type:'pong'}); } else if (m.type === 'host') state(m.online ? '正在同步 EFB…' : '等待模拟器载入飞机并打开 EFB…', false); else if (m.type === 'frame' || m.type === 'patch') apply(m); };
-    s.onclose = async () => { if (socket !== s) return; clearTimeout(timeout); state('连接已断开，正在重试…', false); try { const r = await fetch('/session'); if (socket !== s) return; if (r.status === 401) { pair.hidden = false; state('请重新输入配对码',false); return; } } catch (_) {} if (socket === s) retry = setTimeout(connect, 3000); };
+    s.onmessage = e => { if (socket !== s) return; lastReceive = Date.now(); const m = JSON.parse(e.data); if (m.type === 'ping') { serverTime = m.now; localTime = performance.now(); send({type:'pong'}); } else if (m.type === 'host') state(m.online ? 'Synchronizing EFB…' : 'Waiting for MSFS to load an aircraft and open the EFB…', false); else if (m.type === 'frame' || m.type === 'patch') apply(m); };
+    s.onclose = async () => { if (socket !== s) return; clearTimeout(timeout); state('Disconnected. Reconnecting…', false); try { const r = await fetch('/session'); if (socket !== s) return; if (r.status === 401) { pair.hidden = false; state('Enter your pairing code again.',false); return; } } catch (_) {} if (socket === s) retry = setTimeout(connect, 3000); };
   }
-  setInterval(() => { if (socket?.readyState === 1 && Date.now() - lastReceive > 35000) { state('连接已超时，正在重试…',false); socket.close(); } }, 1000);
-  pair.addEventListener('submit', async e => { e.preventDefault(); const r = await fetch('/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:document.getElementById('key').value})}); if (r.ok) { pair.hidden = true; connect(); } else document.getElementById('pair-error').textContent = r.status === 429 ? '尝试过于频繁，请等待一分钟后重试' : '配对码不正确'; });
+  setInterval(() => { if (socket?.readyState === 1 && Date.now() - lastReceive > 35000) { state('Connection timed out. Retrying…',false); socket.close(); } }, 1000);
+  pair.addEventListener('submit', async e => { e.preventDefault(); const r = await fetch('/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:document.getElementById('key').value})}); if (r.ok) { pair.hidden = true; connect(); } else document.getElementById('pair-error').textContent = r.status === 429 ? 'Too many attempts. Try again in one minute.' : 'Incorrect pairing code.'; });
   // A new browser session always opens the captain's tablet, regardless of old preferences.
   side.value = 'CA';
   side.onclick = () => {
     side.value = side.value === 'CA' ? 'FO' : 'CA';
     side.setAttribute('aria-checked',String(side.value === 'FO'));
-    epoch = null; sequence = 0; nodes.clear(); records.clear(); doc.body.replaceChildren(); connect();
+    gestures.cancelAll();epoch = null; sequence = 0; nodes.clear(); records.clear(); doc.body.replaceChildren(); connect();
   };
-  reconnect.onclick = () => { if (socket?.readyState === 1) send({type:'resync'}); else connect(); };
+  reconnect.onclick = () => { if(gestures.cancelAll())render(Array.from(records.values()));if (socket?.readyState === 1) send({type:'resync'}); else connect(); };
 
-  fetch('/session').then(r => { if (r.ok) connect(); else { pair.hidden = false; state('请先配对', false); } }).catch(() => state('无法连接桥接器',false));
+  fetch('/session').then(r => { if (r.ok) connect(); else { pair.hidden = false; state('Pair your EFB to continue.', false); } }).catch(() => state('Unable to reach the bridge.',false));
 }());

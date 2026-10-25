@@ -1,0 +1,415 @@
+[
+  {"Zh":"制作组","En":"Developer"},
+  {
+    "Zh": "可选；用于 Dispatch 随机真实航班",
+    "En": "Optional; real flight selection in Dispatch"
+  },
+  {
+    "Zh": "安装 / 更新",
+    "En": "Install / Update"
+  },
+  {
+    "Zh": "卸载",
+    "En": "Uninstall"
+  },
+  {
+    "Zh": "就绪",
+    "En": "Ready"
+  },
+  {
+    "Zh": "应用端口",
+    "En": "Apply port"
+  },
+  {
+    "Zh": "日志",
+    "En": "Log"
+  },
+  {
+    "Zh": "已安装机场",
+    "En": "Installed airports"
+  },
+  {
+    "Zh": "EFB v2 · 安装与管理",
+    "En": "EFB v2 · Setup"
+  },
+  {
+    "Zh": "MSFS 配置目录",
+    "En": "MSFS config folder"
+  },
+  {
+    "Zh": "重新检测",
+    "En": "Detect"
+  },
+  {
+    "Zh": "配置目录内含 UserCfg.opt，用于注册模拟器自动启动。",
+    "En": "Folder containing UserCfg.opt, used for simulator autostart."
+  },
+  {
+    "Zh": "LAN 端口",
+    "En": "LAN port"
+  },
+  {
+    "Zh": "LAN 服务将在下次启动 MSFS 2024 时自动运行。",
+    "En": "The LAN service will start automatically the next time you launch MSFS 2024."
+  },
+  {
+    "Zh": "将移除 pmdg-tablet-v2 和 LAN 服务及其自动启动项，不恢复旧版本。是否继续？",
+    "En": "Remove pmdg-tablet-v2, the LAN service and its autostart entry? Previous versions will not be restored."
+  },
+  {
+    "Zh": "卸载 EFB v2",
+    "En": "Uninstall EFB v2"
+  },
+  {
+    "Zh": "机场列表已刷新：已选 {0} / {1} 个机场。",
+    "En": "Airport list refreshed: {0} of {1} airports selected."
+  },
+  {
+    "Zh": "机场扫描提示：",
+    "En": "Airport scan: "
+  },
+  {
+    "Zh": "机场选择未保存：",
+    "En": "Airport selection was not saved: "
+  },
+  {
+    "Zh": "机场选择未保存",
+    "En": "Airport selection not saved"
+  },
+  {
+    "Zh": "端口配置已更新，下次进入飞机时生效。\r\n",
+    "En": "Port updated. It takes effect when you next load the aircraft.\r\n"
+  },
+  {
+    "Zh": "已载入现有安装。",
+    "En": "Existing installation loaded."
+  },
+  {
+    "Zh": "本机：",
+    "En": "This PC: "
+  },
+  {
+    "Zh": "配对码：",
+    "En": "Pairing code: "
+  },
+  {
+    "Zh": "LAN 服务随 MSFS 2024 自动启动。",
+    "En": "The LAN service starts automatically with MSFS 2024."
+  },
+  {
+    "Zh": "安装 / 更新后将启用随 MSFS 2024 自动启动。",
+    "En": "Install / Update will enable automatic startup with MSFS 2024."
+  },
+  {
+    "Zh": "此窗口可配置和卸载。安装或更新请从解压后的完整安装包运行。",
+    "En": "Configuration and uninstall are available here. To install or update, run Setup from the complete extracted release."
+  },
+  {
+    "Zh": "浏览…",
+    "En": "Browse…"
+  },
+  {
+    "Zh": "选择 MSFS 2024 的 Community 或 Community2024 文件夹",
+    "En": "Select the MSFS 2024 Community or Community2024 folder"
+  },
+  {
+    "Zh": "选择包含 UserCfg.opt 的 MSFS 2024 配置目录",
+    "En": "Select the MSFS 2024 configuration folder containing UserCfg.opt"
+  },
+  {
+    "Zh": "已检测到 Community。若有多个目录，请从下拉列表选择。",
+    "En": "Community detected. If multiple folders are listed, select the one you use."
+  },
+  {
+    "Zh": "未自动找到 Community，请点击“浏览”手动选择。",
+    "En": "Community was not detected. Click Browse to select it."
+  },
+  {
+    "Zh": "错误：",
+    "En": "Error: "
+  },
+  {
+    "Zh": "正在处理，请勿关闭窗口…",
+    "En": "Working. Please keep this window open…"
+  },
+  {
+    "Zh": "操作完成",
+    "En": "Completed"
+  },
+  {
+    "Zh": "未完成，请查看下方原因",
+    "En": "Could not complete. See the log for details."
+  },
+  {
+    "Zh": "失败：",
+    "En": "Failed: "
+  },
+  {
+    "Zh": "\r\n\r\n完整信息已保存在日志中。",
+    "En": "\r\n\r\nFull details have been saved to the log."
+  },
+  {
+    "Zh": "操作未完成",
+    "En": "Could not complete"
+  },
+  {
+    "Zh": "尚未加载机场列表",
+    "En": "Airport list not loaded"
+  },
+  {
+    "Zh": "仅用于 Dispatch 优先从所选机场随机选择目的地，不影响模拟器中的机场启用状态。",
+    "En": "Only affects Dispatch's preferred destinations; does not enable or disable scenery in MSFS."
+  },
+  {
+    "Zh": "刷新",
+    "En": "Refresh"
+  },
+  {
+    "Zh": "启用",
+    "En": "Use"
+  },
+  {
+    "Zh": "机场名字",
+    "En": "Airport name"
+  },
+  {
+    "Zh": "已选 {0} / {1} 个机场",
+    "En": "{0} of {1} airports selected"
+  },
+  {
+    "Zh": "暂无机场，请点击右侧“刷新”",
+    "En": "No airports listed. Click Refresh to scan."
+  },
+  {
+    "Zh": "机场列表格式不正确，原文件未被覆盖。",
+    "En": "The airport list has an invalid format. The original file was not overwritten."
+  },
+  {
+    "Zh": "无法读取已安装机场列表；原文件已保留，请检查：",
+    "En": "Cannot read the airport list. The original file was preserved: "
+  },
+  {
+    "Zh": "机场已不在当前列表中，请刷新后重试。",
+    "En": "This airport is no longer in the list. Refresh and try again."
+  },
+  {
+    "Zh": "找不到已安装的 EFB，请先安装 / 更新后再修改机场列表。",
+    "En": "The installed EFB was not found. Install / Update before changing the airport list."
+  },
+  {
+    "Zh": "EFB layout.json 无法读取。",
+    "En": "Cannot read the EFB layout.json file."
+  },
+  {
+    "Zh": "EFB layout.json 缺少 content 列表。",
+    "En": "The EFB layout.json file has no content list."
+  },
+  {
+    "Zh": "请输入完整的文件夹路径，例如 C:\\… 或 A:\\…",
+    "En": "Enter an absolute folder path, such as C:\\… or A:\\…"
+  },
+  {
+    "Zh": "路径超出目标文件夹：",
+    "En": "Path is outside the target folder: "
+  },
+  {
+    "Zh": "检测到链接或联接，请选择实际文件夹后重试：",
+    "En": "A link or junction was found. Select the actual folder and try again: "
+  },
+  {
+    "Zh": "Community 文件夹不存在：",
+    "En": "Community folder does not exist: "
+  },
+  {
+    "Zh": "请先退出 MSFS 2024，再安装、切换模式或卸载。",
+    "En": "Close MSFS 2024 before installing, changing installation mode or uninstalling."
+  },
+  {
+    "Zh": "安装目录、Community 和解压目录不能互相包含。",
+    "En": "The application, Community and extracted release folders must not contain one another."
+  },
+  {
+    "Zh": "LAN 进程尚未退出，请稍后重试。",
+    "En": "The LAN process has not exited. Please try again shortly."
+  },
+  {
+    "Zh": "当前安装未启用 LAN 服务。",
+    "En": "The LAN service is not installed."
+  },
+  {
+    "Zh": "LAN 服务文件缺失，请重新安装。",
+    "En": "LAN service files are missing. Please reinstall."
+  },
+  {
+    "Zh": "LAN 服务启动后退出，请查看 ",
+    "En": "The LAN service exited after starting. Check "
+  },
+  {
+    "Zh": "端口必须介于 1024 和 65535 之间。",
+    "En": "The port must be between 1024 and 65535."
+  },
+  {
+    "Zh": "bridge.json 中 BindAddress 不是有效的 IP 地址。",
+    "En": "BindAddress in bridge.json is not a valid IP address."
+  },
+  {
+    "Zh": "端口 {0} 无法使用，可能已被其他软件占用。请选择其他端口。",
+    "En": "Port {0} is unavailable or in use by another application. Choose a different port."
+  },
+  {
+    "Zh": "exe.xml 格式无法识别，未进行修改：",
+    "En": "The exe.xml format is not recognized. It was not modified: "
+  },
+  {
+    "Zh": "同名自动启动项指向其他目录，请先卸载那个版本。",
+    "En": "An autostart entry with the same name points to another folder. Uninstall that version first."
+  },
+  {
+    "Zh": "安装包缺少 LAN 适配器，请重新解压完整安装包。",
+    "En": "The release is missing the LAN adapter. Extract the complete ZIP again."
+  },
+  {
+    "Zh": "安装包中未找到 PMDG 平板页面，无法启用 LAN。",
+    "En": "No PMDG tablet entry pages were found in the release. LAN cannot be enabled."
+  },
+  {
+    "Zh": "Windows 快捷方式组件不可用。",
+    "En": "The Windows shortcut component is unavailable."
+  },
+  {
+    "Zh": "安装包不完整。请解压整个 ZIP，并从解压目录运行 EfbV2Setup.exe。",
+    "En": "The release is incomplete. Extract the entire ZIP and run EfbV2Setup.exe from that folder."
+  },
+  {
+    "Zh": "AirLabs API key 格式不正确，请检查是否包含空格。",
+    "En": "The AirLabs API key is invalid. Check for spaces."
+  },
+  {
+    "Zh": "已安装到其他 Community 文件夹。请先卸载原位置，或选择原来的文件夹。",
+    "En": "An installation exists in another Community folder. Select the original folder or uninstall it first."
+  },
+  {
+    "Zh": "已有 LAN 配置指向其他 EFB，请先处理原安装。",
+    "En": "The existing LAN configuration points to another EFB. Resolve the original installation first."
+  },
+  {
+    "Zh": "MSFS 配置目录与原安装不同，请先卸载原安装。",
+    "En": "The MSFS configuration folder differs from the existing installation. Uninstall the original installation first."
+  },
+  {
+    "Zh": "自动启动需要 MSFS 2024 配置目录（内含 UserCfg.opt），请选择该目录。",
+    "En": "Select the MSFS 2024 configuration folder containing UserCfg.opt to register automatic startup."
+  },
+  {
+    "Zh": "安装包缺少 LAN 服务。请重新解压完整 ZIP。",
+    "En": "The release is missing the LAN service. Extract the complete ZIP again."
+  },
+  {
+    "Zh": "准备安装文件…",
+    "En": "Preparing installation files…"
+  },
+  {
+    "Zh": "扫描本地机场包元数据（不验证模拟器启用状态）…",
+    "En": "Scanning local airport package metadata (simulator enablement is not verified)…"
+  },
+  {
+    "Zh": "已发现 {0} 个机场，已选 {1} 个；{2} 个机场包暂未识别代码。可在“已安装机场”中排除不使用的机场。",
+    "En": "Found {0} airports; {1} selected. {2} airport packages have no identified ICAO. Use Installed airports to exclude unwanted entries."
+  },
+  {
+    "Zh": "安装 EFB v2…",
+    "En": "Installing EFB v2…"
+  },
+  {
+    "Zh": "安装 LAN 服务及配置…",
+    "En": "Installing the LAN service and configuration…"
+  },
+  {
+    "Zh": "停用并移除原 LAN 服务…",
+    "En": "Disabling and removing the previous LAN service…"
+  },
+  {
+    "Zh": "注册模拟器自动启动…",
+    "En": "Registering automatic startup with the simulator…"
+  },
+  {
+    "Zh": "移除本工具的自动启动项…",
+    "En": "Removing this tool's autostart entry…"
+  },
+  {
+    "Zh": "原 LAN 服务未能重新启动：",
+    "En": "Could not restart the previous LAN service: "
+  },
+  {
+    "Zh": "安装未完成。",
+    "En": "Installation did not complete. "
+  },
+  {
+    "Zh": "文件可能已部分更新，请排除原因后重新安装。",
+    "En": "Some files may have been updated. Resolve the error and reinstall. "
+  },
+  {
+    "Zh": "原因：",
+    "En": "Reason: "
+  },
+  {
+    "Zh": "临时安装文件未能清理：",
+    "En": "Could not remove temporary installation files: "
+  },
+  {
+    "Zh": "文件安装成功，但服务未启动：",
+    "En": "Files were installed, but the service did not start: "
+  },
+  {
+    "Zh": "EFB + LAN 安装完成。",
+    "En": "EFB + LAN installation completed."
+  },
+  {
+    "Zh": "EFB v2 安装完成。未启用 LAN 服务，也未注册自动启动。",
+    "En": "EFB v2 installation completed without LAN or automatic startup."
+  },
+  {
+    "Zh": "尚未安装。",
+    "En": "Not installed."
+  },
+  {
+    "Zh": "当前为仅 EFB 模式。",
+    "En": "This is an EFB-only installation."
+  },
+  {
+    "Zh": "LAN 配置缺失。",
+    "En": "The LAN configuration is missing."
+  },
+  {
+    "Zh": "尚未找到安装记录。",
+    "En": "No installation record was found."
+  },
+  {
+    "Zh": "移除 EFB v2 和 LAN 服务…",
+    "En": "Removing EFB v2 and the LAN service…"
+  },
+  {
+    "Zh": "卸载完成。配置和安装器保留在：",
+    "En": "Uninstall completed. Settings and Setup were kept in: "
+  },
+  {
+    "Zh": "安装器已经打开，请切换到现有窗口。",
+    "En": "Setup is already open. Switch to the existing window."
+  },
+  {
+    "Zh": "EFB v2 安装器",
+    "En": "EFB v2 Setup"
+  },
+  {
+    "Zh": "语言设置未保存：",
+    "En": "Could not save the language preference: "
+  },
+  {
+    "Zh": "语言",
+    "En": "Language"
+  },
+  {
+    "Zh": "机场名称不可用",
+    "En": "Airport name unavailable"
+  }
+]

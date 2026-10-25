@@ -417,6 +417,12 @@ input[type='text']:focus-visible {
 }
 
 .tab{
+  font-family: inherit;
+  border: 0;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
   cursor: pointer;
   text-align: center;
   width: 100%;

@@ -3,14 +3,16 @@ using System.Text.RegularExpressions;
 
 namespace EfbSetup;
 
-public sealed record AirportPackage(string Package, string Source, string Evidence);
-public sealed record InstalledAirport(string Icao, AirportPackage[] Packages);
+public sealed record AirportPackage(string Package, string Source, string Evidence, string Title="", string Creator="");
+public sealed record InstalledAirport(string Icao, AirportPackage[] Packages, string Name="", bool Enabled=true, string Creator="");
 public sealed record UnresolvedAirportPackage(string Package, string Source, string Title);
 public sealed class AirportInventory {
-    public int SchemaVersion {get;set;}=1;
+    public int SchemaVersion {get;set;}=2;
     public DateTimeOffset? ScannedAtUtc {get;set;}
     public string[] Icaos {get;set;}=[];
     public InstalledAirport[] Airports {get;set;}=[];
+    // Keep exclusions even when a package temporarily disappears during a scan.
+    public string[] DisabledIcaos {get;set;}=[];
     public UnresolvedAirportPackage[] UnresolvedPackages {get;set;}=[];
     public string[] Warnings {get;set;}=[];
     // Files on disk, including streamed caches, do not establish enabled state.
@@ -65,6 +67,11 @@ public static class AirportScanner {
             var title=m is {ValueKind:JsonValueKind.Object}?Text(m.Value,"title"):"";
             var type=m is {ValueKind:JsonValueKind.Object}?Text(m.Value,"content_type"):"";
             var hint=m is {ValueKind:JsonValueKind.Object}?Text(m.Value,"package_order_hint"):"";
+            var creator=m is {ValueKind:JsonValueKind.Object}?Text(m.Value,"manufacturer").Trim():"";
+            if(creator.Length==0&&m is {ValueKind:JsonValueKind.Object})creator=Text(m.Value,"creator").Trim();
+            // This optional field is an exclusion for explicit patch packages,
+            // not a requirement that all airport packages declare CUSTOM_AIRPORT.
+            if(hint.Trim().Equals("CUSTOM_AIRPORT_PATCH",StringComparison.OrdinalIgnoreCase))return;
             if(type.Length>0&&!type.Equals("SCENERY",StringComparison.OrdinalIgnoreCase))return;
             var airport=hint.Equals("CUSTOM_AIRPORT",StringComparison.OrdinalIgnoreCase)||Regex.IsMatch(id,@"(?:^|[-_ ])airport(?:[-_ ]|$)",RegexOptions.IgnoreCase)||title.Contains("airport",StringComparison.OrdinalIgnoreCase);
             if(!airport)return;
@@ -98,7 +105,7 @@ public static class AirportScanner {
             }
             foreach(var code in codes) {
                 if(!found.TryGetValue(code.Key,out var list))found[code.Key]=list=[];
-                list.Add(new(id,source,code.Value));
+                list.Add(new(id,source,code.Value,title,creator));
             }
         }
         foreach(var location in locations)foreach(var path in Children(location.Key)) {
@@ -109,7 +116,7 @@ public static class AirportScanner {
                 foreach(var child in Children(path))Package(child,location.Value);
             } else Package(path,location.Value);
         }
-        var airports=found.OrderBy(x=>x.Key,StringComparer.Ordinal).Select(x=>new InstalledAirport(x.Key,x.Value.ToArray())).ToArray();
+        var airports=found.OrderBy(x=>x.Key,StringComparer.Ordinal).Select(x=>new InstalledAirport(x.Key,x.Value.ToArray(),AirportInventoryStore.DisplayName(x.Key,x.Value.ToArray()),Creator:AirportInventoryStore.DisplayCreator(x.Value.ToArray()))).ToArray();
         return new AirportInventory {ScannedAtUtc=DateTimeOffset.UtcNow,Icaos=airports.Select(x=>x.Icao).ToArray(),Airports=airports,UnresolvedPackages=unresolved.ToArray(),Warnings=warnings.ToArray()};
     }
 }

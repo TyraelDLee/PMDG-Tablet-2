@@ -40,7 +40,7 @@ async Task Run() {
  async Task Send(Peer p,object obj) { try { await p.Send(JsonSerializer.Serialize(obj)); } catch { p.Socket.Abort(); } }
  async Task Notify(string side,object obj) { foreach(var p in clients.Values.Where(p=>p.Side==side))await Send(p,obj); }
  app.Use(async (c,next)=> { c.Response.Headers.XContentTypeOptions="nosniff"; c.Response.Headers.CacheControl="no-store"; await next(); });
- app.MapGet("/health",()=>Results.Json(new {service="EFB v2 LAN",version="0.2.32",hosts=hosts.Keys}));
+ app.MapGet("/health",()=>Results.Json(new {service="EFB v2 LAN",version="0.2.43",hosts=hosts.Keys}));
  app.MapGet("/session",(HttpContext c)=>Paired(c)?Results.Ok():Results.Unauthorized());
  app.MapGet("/diagnostics",(HttpContext c)=>Paired(c)?Results.Json(hosts.ToDictionary(h=>h.Key,h=>h.Value.Resources.Diagnostics())):Results.Unauthorized());
  app.MapGet("/resources/{side}/{epoch}/{id}",(HttpContext c,string side,string epoch,string id)=>{
@@ -61,6 +61,7 @@ async Task Run() {
  }).RequireRateLimiting("pair");
  app.MapGet("/",()=>Results.File(Path.Combine(root,"web","index.html"),"text/html"));
  app.MapGet("/client.js",()=>Results.File(Path.Combine(root,"web","client.js"),"text/javascript"));
+ app.MapGet("/client-gestures.js",()=>Results.File(Path.Combine(root,"web","client-gestures.js"),"text/javascript"));
  app.MapGet("/client.css",()=>Results.File(Path.Combine(root,"web","client.css"),"text/css"));
  app.MapGet("/lan-controls.css",()=>Results.File(Path.Combine(root,"web","lan-controls.css"),"text/css"));
  app.MapGet("/client-fixes.css",()=>Results.File(Path.Combine(root,"web","client-fixes.css"),"text/css"));
@@ -126,7 +127,7 @@ async Task Run() {
       var age=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()-stamp;
       if(age>3000 || age < -500)continue;
       var ev=msg.GetProperty("event").GetString();
-      if(ev is not ("tap" or "click" or "input" or "change" or "scroll" or "keydown" or "keyup" or "mousedown" or "mouseup" or "mousemove"))continue;
+      if(ev is not ("tap" or "click" or "input" or "change" or "scroll" or "view-scroll" or "view-map" or "keydown" or "keyup" or "mousedown" or "mouseup" or "mousemove"))continue;
       if(!peer.AllowAction())continue;
       await Send(target,msg);
      }

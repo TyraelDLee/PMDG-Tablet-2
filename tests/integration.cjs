@@ -61,6 +61,7 @@ function fixture() { return `<!doctype html><html><head><meta charset="utf-8"><s
   logs.push('Aircraft metadata updates without DOM changes; subtype labels drop BBJ/PAX/SSW/BW and retain 900ER/200ER/200LR/F; fresh page defaults to CA despite saved FO');
   assert.equal(await remote.locator('header').count(),0);
   assert.equal(await remote.locator('#viewport').evaluate(n=>n.getBoundingClientRect().height),1024);
+  assert.equal(await remote.locator('html').getAttribute('lang'),'en');assert.equal(await remote.locator('#pair h1').textContent(),'Connect to your EFB');
   assert.equal(await native.locator('#lan-controls').count(),0);
   await screen.locator('#side').focus();
   await screen.locator('#lan-controls').evaluate(n=>{window.originalLanControls=n;window.lanDetachments=0;new MutationObserver(ms=>{for(const m of ms)for(const r of m.removedNodes)if(r===n)window.lanDetachments++}).observe(n.parentElement,{childList:true})});
@@ -110,6 +111,8 @@ function fixture() { return `<!doctype html><html><head><meta charset="utf-8"><s
   assert.equal(await remote.locator('#viewport').evaluate(n=>n.clientHeight),1194);
   logs.push('Home-screen mode uses opaque fixed top surface and safe-area fit in both orientations; resync preserves surface; ordinary browser returns to full height; iOS system blur requires real-device check');
   await remote.setViewportSize({width:1194,height:834});
+  await require('./gestures-lan.cjs')({native,remote,screen,tablet,output,until,wait});
+  logs.push('LAN settled view commits: no intermediate scroll/map actions, late native patches cannot pull local views back, momentum batches once, chart identity and map lock changes cancel stale gestures; real PMDG Leaflet rotation and final centers verified');
   await native.evaluate(()=>{
     const pad=document.createElement('div');pad.id='map-fixture';pad.className='leaflet-container';pad.style.cssText='position:absolute;left:60px;top:650px;width:800px;height:250px;background:#264354';
     pad.innerHTML='<button class="leaflet-control">Zoom</button><div id="drag-result">--</div>';
@@ -254,20 +257,25 @@ function fixture() { return `<!doctype html><html><head><meta charset="utf-8"><s
   assert.equal((await fetch(`http://127.0.0.1:${port}/assets/Pages/VCockpit/Instruments/PMDGTablet/lan-bridge/lan-bridge-config.js`,{headers})).status,404);
   assert.equal(await rejected(`ws://127.0.0.1:${port}/ws/client?side=CA`,{headers:{...headers,Origin:'https://evil.invalid'}}),403);logs.push('Proxy URL rewriting, host config protection and Origin validation');
   await screen.locator('#side .lan-side-track').tap();await until(async()=>await remote.locator('#offline').isVisible(),'Offline FO not blocked');
+  assert.equal(await remote.locator('#lan-aircraft').textContent(),'Last used: 777-300ER');assert(!/[\u3400-\u9fff]/.test(await remote.locator('#status').textContent()));
   assert.equal(await remote.locator('#side').getAttribute('aria-checked'),'true');
   assert.equal(await remote.locator('.lan-side-fo').evaluate(n=>getComputedStyle(n).fontWeight),'700');
   assert.notEqual(await remote.locator('.lan-side-thumb').evaluate(n=>getComputedStyle(n).transform),'none');
   await remote.locator('#side .lan-side-fo').tap();await screen.locator('#result').waitFor();assert.equal(await screen.locator('#result').textContent(),'V1 268 25L');logs.push('CA/FO isolation and full-state resynchronization');
+  assert.equal(await screen.locator('#lan-aircraft').textContent(),'777-300ER');
   await remote.reload();await screen.locator('#calculate').waitFor();assert.equal(await screen.locator('#result').textContent(),'V1 268 25L');logs.push('Cookie pairing and reload restore existing state');
   await require('./autocruise-popup.cjs')({native,remote,screen,tablet,output,until,logs});
   await require('./jetways-integration.cjs')({native,remote,screen,tablet,output,until,wait,logs});
   await native.close();await until(async()=>await remote.locator('#offline').isVisible(),'Native disconnect not visible');
+  assert.equal(await remote.locator('#lan-aircraft').textContent(),'Last used: 777-300ER');assert(!/[\u3400-\u9fff]/.test(await remote.locator('#offline').innerText()));
   assert.equal((await fetch(`http://127.0.0.1:${port}${imagePath}`,{headers})).status,404);logs.push('Native image cache disappears when host disconnects');
-  const next=await browser.newPage({viewport:{width:1280,height:900}});await next.goto(`http://127.0.0.1:${hostPort}/`);await until(async()=>await screen.locator('#result').textContent()==='--','New host session not restored');assert.equal(await next.evaluate(()=>calls.length),0);logs.push('Native session replacement restores state without replaying previous commands');
+  const next=await browser.newPage({viewport:{width:1280,height:900}});await next.addInitScript(()=>window.getAircraftType=()=> '737-800');await next.goto(`http://127.0.0.1:${hostPort}/`);await until(async()=>await screen.locator('#result').textContent()==='--','New host session not restored');await until(async()=>await screen.locator('#lan-aircraft').textContent()==='737-800','New live aircraft retained the stale Last used label');assert.equal(await next.evaluate(()=>calls.length),0);logs.push('Native session replacement restores state without replaying previous commands; waiting screen is English with Last used aircraft and updates to the newly loaded live model');
   await remote.screenshot({path:path.join(output,'remote-fixture.png')});
   await remote.close();await wait(1000);const count=await next.evaluate(()=>framesSent);await wait(1000);assert.equal(await next.evaluate(()=>framesSent),count);logs.push('No DOM updates transmitted when no clients subscribe');
   assert.deepEqual(errors,[]);logs.push('No browser JavaScript errors');
-  for(let i=0;i<4;i++)assert.equal((await fetch(`http://127.0.0.1:${port}/pair`,{method:'POST',headers:{Origin:`http://127.0.0.1:${port}`,'Content-Type':'application/json'},body:JSON.stringify({key:'9999'})})).status,401);
+  // Long gesture regressions can outlast the first fixed limiter window.
+  // Exercise the limiter in one fresh burst instead of counting the first login.
+  let limited=false;for(let i=0;i<6;i++){const status=(await fetch(`http://127.0.0.1:${port}/pair`,{method:'POST',headers:{Origin:`http://127.0.0.1:${port}`,'Content-Type':'application/json'},body:JSON.stringify({key:'9999'})})).status;if(status===429){limited=true;break;}assert.equal(status,401);}assert(limited);
   assert.equal((await fetch(`http://127.0.0.1:${port}/pair`,{method:'POST',headers:{Origin:`http://127.0.0.1:${port}`,'Content-Type':'application/json'},body:JSON.stringify({key})})).status,429);
   assert.equal((await fetch(`http://127.0.0.1:${port}/session`,{headers})).status,200);logs.push('Pairing attempts rate limited; existing authenticated session still works');
   fs.writeFileSync(path.join(output,'integration.json'),JSON.stringify({passed:true,checks:logs,date:new Date().toISOString()},null,2));console.log(logs.join('\n'));

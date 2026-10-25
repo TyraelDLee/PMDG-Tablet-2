@@ -18,9 +18,8 @@ foreach($old in @('navigraph-app.js','navigraph-app.css')) {
     if(Test-Path -LiteralPath $file){Remove-Item -LiteralPath $file}
 }
 Copy-Item -LiteralPath (Join-Path $base 'dist\setup-build\EfbV2Setup.exe') -Destination $out -Force
-foreach($old in @('Common.ps1','Configure.ps1','Stop.ps1','Status.ps1','Uninstall.ps1')) { $file=Join-Path $out $old; if(Test-Path -LiteralPath $file){Remove-Item -LiteralPath $file} }
-[IO.File]::WriteAllText((Join-Path $out 'Install.cmd'), "@echo off`r`nstart `"`" `"%~dp0EfbV2Setup.exe`"`r`n")
-[IO.File]::WriteAllText((Join-Path $out 'Install.ps1'), 'Start-Process -FilePath (Join-Path $PSScriptRoot ''EfbV2Setup.exe'')' + "`r`n")
+# Reused output folders must not retain the retired installer launchers.
+foreach($old in @('Common.ps1','Configure.ps1','Stop.ps1','Status.ps1','Uninstall.ps1','Install.cmd','Install.ps1')) { $file=Join-Path $out $old; if(Test-Path -LiteralPath $file){Remove-Item -LiteralPath $file} }
 $packageOut=Join-Path $out 'package\pmdg-tablet-v2'
 if (-not $ReusePackage) {
 New-Item -ItemType Directory -Path (Split-Path $packageOut) -Force | Out-Null

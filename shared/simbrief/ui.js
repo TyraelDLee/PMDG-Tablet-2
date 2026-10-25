@@ -15,7 +15,7 @@
   function simNow(){return C.utcInput(C.simulatorUTC(root.SimVar));}
   var preferenceKey='PMDG_EFB_SIMBRIEF_PREFER_INSTALLED_V1',preferInstalled=true;
   try{preferInstalled=!(root.GetStoredData&&root.GetStoredData(preferenceKey)==='0');}catch(_){}
-  var header=el('header','sb-header',null,page),title=el('div','',null,header);el('h1','','SimBrief',title);el('p','sb-subtitle','Flight planning',title);
+  var header=el('header','sb-header',null,page),title=el('div','',null,header);el('h1','','Dispatch',title);el('p','sb-subtitle','Flight planning',title);
   var actions=el('div','sb-actions',null,header),preference=el('div','sb-installed-preference',null,actions);el('span','','Prefer installed airport:',preference);
   var preferSwitch=button('',preference,function(){if(busy||planningBusy)return;preferInstalled=!preferInstalled;syncPreference();try{if(root.SetStoredData)root.SetStoredData(preferenceKey,preferInstalled?'1':'0');}catch(_){}});
   preferSwitch.id='sb-prefer-installed';preferSwitch.classList.add('sb-installed-switch');preferSwitch.setAttribute('role','switch');preferSwitch.setAttribute('aria-label','Prefer installed airport');el('span','sb-switch-thumb',null,preferSwitch);
@@ -27,7 +27,7 @@
   var login=button('Sign in / Account',actions,function(){if(!busy)navigate('account');});login.id='sb-account';function setSignedIn(value){login.textContent=value?'Signed in':'Sign in / Account';if(!value){ready=false;lock(busy);notice('Login expired. Open the official SimBrief app to refresh, then reconnect.',true);}}
   var status=el('div','sb-status','Open the official SimBrief app to sign in, then connect here.',page);status.setAttribute('role','status');
   var progress=el('div','sb-progress',null,page),fill=el('div','sb-progress-fill',null,progress);progress.style.display='none';
-  var workspace=el('div','sb-workspace',null,page),form=el('div','sb-form sb-scroll',null,workspace),sidebar=el('aside','sb-sidebar sb-scroll',null,workspace);
+  var workspace=el('div','sb-workspace',null,page),form=el('div','sb-form sb-scroll',null,workspace),right=el('div','sb-right',null,workspace),sidebar=el('aside','sb-sidebar sb-scroll',null,right);
   var briefing=el('section','sb-briefing sb-scroll',null,page);briefing.style.display='none';var briefSummary=el('div','sb-brief-summary','No briefing loaded. Generate a flight plan or load your latest OFP.',briefing),ofp=el('pre','sb-ofp','',briefing);
   function section(name){var panel=el('section','sb-panel',null,form);el('h2','sb-bar',name,panel);return el('div','sb-fields',null,panel);}
   function field(name,label,parent,kind,choices,initial,wide){
@@ -114,10 +114,10 @@
   [['navlog','Detailed navlog','1'],['etops','ETOPS','1'],['stepclimbs','Step climbs','1'],['tlr','Runway analysis','0'],['notams','Include NOTAMs','0'],['firnot','FIR NOTAMs','0']].forEach(function(v){field(v[0],v[1],settings,'select',[{value:'1',label:'On'},{value:'0',label:'Off'}],v[2]);});
   el('h2','sb-bar','Briefing summary',sidebar);var summary=el('div','sb-summary',null,sidebar);
   el('p','sb-empty','Your generated flight plan will appear here.',summary);
-  el('p','sb-help','Blank optional fields use automatic planning. Freight and extra fuel use the selected weight units. Review the OFP before importing it into the aircraft.',sidebar);
-  var footer=el('footer','sb-footer',null,page);
+  var footer=el('footer','sb-footer',null,right);
   var cancel=button('Cancel generation',footer,async function(){if(!planner.busy()||cancelling)return;cancelling=true;cancel.disabled=true;try{await planner.cancel();notice('Cancellation sent.');}catch(e){notice('Cancellation could not be confirmed. Use Load latest before generating again.',true);}finally{cancelling=false;lock(false);}});cancel.style.display='none';
-  var generate=button('Generate flight plan',footer,function(){run('Preparing flight plan…',async function(){var p=readPayload();if(!p.route){notice('Finding a route…');p.route=await findRoute(p);fields.route.value=p.route;}cancel.style.display='block';cancel.disabled=false;var data=await planner.generate(p);showPlan(data);notice('Flight plan generated. Review the briefing before import.');
+  cancel.classList.add('sb-cancel');
+  var generate=button('Generate Flight Plan',footer,function(){run('Preparing flight plan…',async function(){var p=readPayload();if(!p.route){notice('Finding a route…');p.route=await findRoute(p);fields.route.value=p.route;}cancel.style.display='block';cancel.disabled=false;var data=await planner.generate(p);showPlan(data);notice('Flight plan generated. Review the briefing before import.');
    if(env.importSimbrief){try{await env.importSimbrief();notice('Flight plan generated. PMDG import requested.');}catch(e){notice('Flight plan generated. '+(e.message||'PMDG import unavailable. Use Request Data from Simbrief in the EFB app.'),true);}}
   },true);});generate.classList.add('sb-generate');
   var planner=new root.PMDGSimBriefPlanner(client,function(d){notice(d.message);fill.style.width=d.percent+'%';});
@@ -254,13 +254,16 @@
   async function run(message,fn,generating){if(busy||planningBusy)return;saveDraft();lock(true);notice(message);if(generating){progress.style.display='block';fill.style.width='0%';}try{await fn();}catch(e){if(e.status===401)ready=false;notice(e.message || 'Request failed.',true);}finally{if(!cancelling){lock(false);saveDraft();}}}
   function pickFrame(){
    invalidatePlanning();if(generate){suggest.disabled=busy||!ready||!selected();generate.disabled=busy||!ready||!selected();find.disabled=generate.disabled;}
-   var f=selected();if(!f){fields.reg.value='';fields.cruisesub.value='';['climb','cruisemode','descent'].forEach(function(k){options(fields[k],[]);});schedulePlanning();saveDraft();return;}var d=C.defaults(f);
+   var f=selected();if(!f){fields.reg.value='';fields.cruisesub.value='';['climb','cruisemode','descent'].forEach(function(k){options(fields[k],[]);});schedulePlanning();saveDraft();return;}
+   // The main Airframe picker contains the account's entire saved fleet.
+   // Choosing a frame also selects its actual aircraft/performance group.
+   fields.icao.value=f.group;fields.icao._sync();var d=C.defaults(f);
    ['climb','cruisemode','descent'].forEach(function(k){var key=k==='cruisemode'?'cruise':k,list=f.data['aircraft_profiles_'+key] || [];if(!list.length)list=[d[k] || ''];options(fields[k],list.map(function(v){return {value:v,label:v || 'Automatic'};}),d[k]);});
    fields.reg.value=d.reg;fields.cruisesub.value=d.cruisesub;
    if(f.options.planunits==='0'||f.options.planunits==='1'){convertUnits(f.options.planunits);}
    schedulePlanning();saveDraft();
   }
-  function pickAircraft(id,restore){var g=groups.filter(function(g){return g.id===fields.icao.value;})[0];frames=g?g.frames.filter(function(f){return f.personal;}):[];options(fields.type,frames.length?[{value:'',label:'Select an airframe (required)'}].concat(frames.map(function(f){return {value:f.id,label:f.label || f.name};})):[],id);var mine=frames.length;fleetInfo.textContent=mine?mine+' saved airframe'+(mine===1?'':'s')+' for this type':'No saved airframes for this type. Choose another aircraft or use All my airframes.';if(!restore)pickFrame();find.disabled=busy||!ready||!selected();generate.disabled=busy||!ready||!selected();}
+  function pickAircraft(id,restore){frames=[];groups.forEach(function(g){g.frames.forEach(function(f){if(f.personal)frames.push(f);});});options(fields.type,frames.length?[{value:'',label:'Select an airframe (required)'}].concat(frames.map(function(f){return {value:f.id,label:f.icao+' · '+(f.label || f.name)};})):[],id);var mine=frames.length;fleetInfo.textContent=mine?mine+' saved airframe'+(mine===1?'':'s')+' available':'No saved airframes available.';if(!restore)pickFrame();find.disabled=busy||!ready||!selected();generate.disabled=busy||!ready||!selected();}
   var units='0';
   function convertUnits(next){
    if(units!==next)['cargo','addedfuel'].forEach(function(k){var v=fields[k].value;if(/^\d+$/.test(v))fields[k].value=String(Math.round(+v*(next==='1'?2.20462262185:1/2.20462262185)));});
@@ -312,7 +315,7 @@
    units=fields.pounds.value;convertUnits(units);saveDraft();
   }
   async function refreshCatalog(){var current=fields.type.value,all=await Promise.all([client.call('GET','/airframes'),client.call('GET','/airframes/user')]);groups=C.catalog(all[0],all[1]);options(fields.icao,groups.map(function(g){return {value:g.id,label:g.icao+' · '+g.name};}),fields.icao.value);pickAircraft(current);}
-  var toolbox=el('section','sb-toolbox sb-scroll',null,page);page.insertBefore(toolbox,footer);toolbox.style.display='none';
+  var toolbox=el('section','sb-toolbox sb-scroll',null,page);page.insertBefore(toolbox,workspace);toolbox.style.display='none';
   tools=new root.PMDGSimBriefTools({container:toolbox,page:page,el:el,button:button,client:client,run:run,notice:notice,plain:plainOFP,picker:openPicker,ready:function(){return ready;},groups:function(){return groups;},selected:selected,form:formValues,payload:readPayload,applyForm:applyForm,showPlan:showPlan,navigate:navigate,load:load,refreshCatalog:refreshCatalog,useFrame:function(f){fields.icao.value=f.group;fields.icao._sync();additionalOptions={};pickAircraft(f.id);},setRoute:function(o,d,r){fields.orig.value=o;fields.dest.value=d;fields.route.value=r;schedulePlanning();saveDraft();}});
   routeView=new root.PMDGSimBriefRoutes({container:routeContainer,client:client,el:el,button:button,run:run,notice:notice,payload:readPayload,values:formValues,date:function(){return fields.date.value;},searchData:function(p,date){return searchRoutes(p,date,true);},searched:function(p,date){suggestionKey=JSON.stringify(C.routeSearchQuery(p,date));},setRoute:function(v){autoRoute='';routeKey='';fields.route.value=v;saveDraft();}});Object.keys(fields).forEach(function(k){fields[k].addEventListener('input',function(){routeView.invalidate();});fields[k].addEventListener('change',function(){routeView.invalidate();});});
   function value(v){return v==null||v===''?'—':String(v);}
@@ -344,8 +347,8 @@
  root.PMDGSimBrief={install:function(bus,env,base){
   if(document.getElementById('simbrief_dispatch'))return;
   var page=el('div','efb_page',null,document.getElementById('AppContent'));page.id='simbrief_dispatch';page.style.display='none';var view=new View(page,env);
-  var launcher=button('',document.getElementById('remote-app-launchers'),function(){bus.getPublisher().pub('current_app','simbrief_dispatch');});launcher.setAttribute('aria-label','SimBrief');
-  var icon=el('img','',null,launcher);icon.src=base+'/simbrief/icon.svg';icon.alt='';el('span','','SimBrief',launcher);
+  var launcher=button('',document.getElementById('remote-app-launchers'),function(){bus.getPublisher().pub('current_app','simbrief_dispatch');});launcher.setAttribute('aria-label','Dispatch');
+  var icon=el('img','',null,launcher);icon.src=base+'/simbrief/icon.svg';icon.alt='';el('span','','Dispatch',launcher);
   bus.getSubscriber().on('current_app').whenChanged().handle(function(app){var active=app==='simbrief_dispatch';page.style.display=active?'flex':'none';view.activate(active);});return view;
  }};
 })(window);

@@ -31,13 +31,41 @@ class IngamePanelBATCPanel {
 
         // Try to prompt the scrollers into life
         const atcTab = document.getElementById('action-tab');
-        atcTab.addEventListener('click', () => {
+        const bindTab = (tab, activate) => {
+            let gesture = null, compatibilityUntil = 0;
+            tab.addEventListener('click', event => {
+                if (event.detail && Date.now() < compatibilityUntil && !(event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents === false)) {event.preventDefault();return;}
+                activate();
+            });
+            tab.addEventListener('touchstart', event => {
+                const t = event.touches[0];
+                gesture = event.touches.length === 1 ? {id:t.identifier,x:t.clientX,y:t.clientY,time:Date.now(),cancelled:false} : null;
+            }, {passive:true});
+            tab.addEventListener('touchmove', event => {
+                if(!gesture)return;
+                const t=Array.from(event.touches).find(t=>t.identifier===gesture.id);
+                if(!t||event.touches.length!==1||Math.hypot(t.clientX-gesture.x,t.clientY-gesture.y)>10)gesture.cancelled=true;
+            }, {passive:true});
+            tab.addEventListener('touchend', event => {
+                const g=gesture;gesture=null;if(!g)return;
+                compatibilityUntil=Date.now()+800;
+                if(event.cancelable)event.preventDefault();
+                const t=Array.from(event.changedTouches).find(t=>t.identifier===g.id);
+                if(g.cancelled||!t||event.touches.length||Date.now()-g.time>650||Math.hypot(t.clientX-g.x,t.clientY-g.y)>10)return;
+                const hit=document.elementFromPoint(t.clientX,t.clientY);if(hit&&tab.contains(hit))activate();
+            }, {passive:false});
+            tab.addEventListener('touchcancel',()=>{gesture=null;compatibilityUntil=Date.now()+800;});
+            tab.addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const other=tab===atcTab?frequenciesTab:atcTab;other.focus();other.click();}});
+        };
+        bindTab(atcTab, () => {
             console.log("ATC Log Tab1 click");
 
             const atcMenu = document.getElementById('batc-actions');
             atcMenu.classList.remove('hidden');
             atcMenu.classList.add('display');
             atcTab.classList.add('selected');
+            atcTab.setAttribute('aria-selected','true');
+            frequenciesTab.setAttribute('aria-selected','false');
             const freMenu = document.getElementById('batc-freq');
             freMenu.classList.add('hidden');
             frequenciesTab.classList.remove('selected');
@@ -46,7 +74,7 @@ class IngamePanelBATCPanel {
 
         // Tab switch event listener with a send for frequencies, as we set the atc_log message on the first tab switch
         const frequenciesTab = document.getElementById('freq-tab');
-        frequenciesTab.addEventListener('click', () => {
+        bindTab(frequenciesTab, () => {
             console.log("Frequencies Tab2 click, sending frequencies message");
 
             const atcMenu = document.getElementById('batc-actions');
@@ -57,6 +85,8 @@ class IngamePanelBATCPanel {
             tabMenu.classList.remove('hidden');
             tabMenu.classList.add('display');
             frequenciesTab.classList.add('selected');
+            frequenciesTab.setAttribute('aria-selected','true');
+            atcTab.setAttribute('aria-selected','false');
 
             this.send('frequencies');
         });
